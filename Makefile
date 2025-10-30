@@ -1,0 +1,52 @@
+.PHONY: install dev test clean format lint help
+
+help:
+	@echo "gcallm - Google Calendar + LLM CLI"
+	@echo ""
+	@echo "Available commands:"
+	@echo "  make install    Install gcallm with uv tool install"
+	@echo "  make dev        Install in development mode"
+	@echo "  make test       Run tests"
+	@echo "  make format     Format code with black"
+	@echo "  make lint       Lint code with ruff"
+	@echo "  make clean      Remove build artifacts"
+	@echo "  make uninstall  Uninstall gcallm"
+
+install:
+	@echo "📦 Installing gcallm with uv..."
+	uv tool install --editable .
+	@echo "✅ Installation complete! Try: gcallm verify"
+
+dev:
+	@echo "📦 Installing gcallm in development mode..."
+	uv pip install -e ".[dev]"
+	@echo "✅ Development installation complete!"
+
+test:
+	@echo "🧪 Running tests..."
+	pytest tests/ -v
+
+format:
+	@echo "🎨 Formatting code..."
+	black gcallm/ tests/
+	@echo "✅ Code formatted!"
+
+lint:
+	@echo "🔍 Linting code..."
+	ruff check gcallm/ tests/
+	@echo "✅ Linting complete!"
+
+clean:
+	@echo "🧹 Cleaning build artifacts..."
+	rm -rf build/
+	rm -rf dist/
+	rm -rf *.egg-info
+	rm -rf .pytest_cache
+	find . -type d -name __pycache__ -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete
+	@echo "✅ Cleaned!"
+
+uninstall:
+	@echo "🗑️  Uninstalling gcallm..."
+	uv tool uninstall gcallm
+	@echo "✅ Uninstalled!"

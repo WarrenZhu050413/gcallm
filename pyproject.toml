@@ -1,0 +1,30 @@
+[project]
+name = "gcallm"
+version = "0.1.0"
+description = "Simple CLI to add events to Google Calendar using Claude and natural language"
+authors = [
+    {name = "Warren Zhu", email = "wzhu@college.harvard.edu"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "typer[all]>=0.9.0",
+    "rich>=13.0.0",
+    "claude-agent-sdk>=0.1.0",
+    "python-dateutil>=2.8.0",
+]
+
+[project.scripts]
+gcallm = "gcallm.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
