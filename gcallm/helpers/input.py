@@ -55,10 +55,11 @@ def get_from_editor() -> Optional[str]:
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as tf:
         temp_path = Path(tf.name)
 
-        # Write helpful prompt
-        tf.write("# Enter your event description below\n")
+        # Write helpful prompt - instructions at bottom so cursor starts at top
+        tf.write("\n\n\n")
+        tf.write("# Enter your event description above\n")
         tf.write("# Lines starting with # will be ignored\n")
-        tf.write("# Save and quit to create events\n\n")
+        tf.write("# Save and quit to create events\n")
         tf.flush()
 
         try:

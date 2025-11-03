@@ -10,6 +10,7 @@ from claude_agent_sdk import (
     TextBlock,
     ToolUseBlock,
 )
+from claude_agent_sdk.types import McpStdioServerConfig
 from rich.console import Console
 from rich.panel import Panel
 
@@ -72,12 +73,20 @@ class CalendarAgent:
         Returns:
             Summary of created events
         """
+        # Configure Google Calendar MCP server explicitly
+        google_calendar_mcp = McpStdioServerConfig(
+            command="npx",
+            args=["-y", "@cocal/google-calendar-mcp"],
+            env=None,
+        )
+
         options = ClaudeAgentOptions(
             model=self.model,
-            system_prompt=SYSTEM_PROMPT,  # System prompt goes in options
+            system_prompt=SYSTEM_PROMPT,
             permission_mode="bypassPermissions",
-            max_turns=10,  # Allow multiple tool calls for complex operations
-            setting_sources=["user"],  # Load user settings to get MCP configurations
+            max_turns=10,
+            mcp_servers={"google-calendar": google_calendar_mcp},
+            setting_sources=["user", "project"],  # Also try loading from config files
         )
 
         full_prompt = f"""User input: {user_input}
