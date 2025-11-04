@@ -89,9 +89,8 @@ def format_event_response(response: str, console: Console) -> None:
 
                 # Add link
                 if 'link' in event:
-                    # Shorten the link for display
-                    short_link = event['link'][:70] + "..." if len(event['link']) > 70 else event['link']
-                    table.add_row("Link:", f"[link={event['link']}]{short_link}[/link]")
+                    # Display full URL (clickable)
+                    table.add_row("Link:", f"[link={event['link']}]{event['link']}[/link]")
 
                 # Display in a panel
                 console.print()

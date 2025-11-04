@@ -47,6 +47,30 @@ class TestFormatter:
         assert "Daily Standup" in result
         assert "Every day at 9:00 AM - 9:30 AM" in result
 
+    def test_long_url_not_truncated_with_ellipsis(self):
+        """Test that long URLs should NOT be truncated with ... in display text."""
+        # Very long Google Calendar URL (common in real usage) - 141 characters
+        long_url = "https://www.google.com/calendar/event?eid=NzA2aTI2ZG45aW1qbnBjYm1wa2FyYzhpdnMgd3podUBjb2xsZWdlLmhhcnZhcmQuZWR1&ctz=America/New_York"
+
+        response = f"""✅ Created 1 event:
+
+- **SUFRA - Arab Heritage Night**
+- **Date & Time:** Friday, November 8, 2025 at 8:30 PM - 11:00 PM (EST)
+- **Event Link:** {long_url}"""
+
+        output = StringIO()
+        console = Console(file=output, force_terminal=True, width=120)
+
+        format_event_response(response, console)
+        result = output.getvalue()
+
+        # The full URL should be in the result (for clickability)
+        assert long_url in result
+
+        # The display should NOT contain "..." for truncation
+        # Current implementation truncates at 70 chars, so this should fail
+        assert "..." not in result, "URL should not be truncated with ellipsis - breaks clickability"
+
     def test_event_with_description(self):
         """Test formatting event with description field."""
         response = """✅ Created 1 event:
