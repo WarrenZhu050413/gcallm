@@ -387,7 +387,7 @@ class CalendarAgent:
         user_input: str,
         screenshot_paths: Optional[list[str]] = None,
         interactive: bool = False,
-    ) -> dict:
+    ) -> str:
         """Synchronous wrapper for process_events.
 
         Args:
@@ -396,23 +396,20 @@ class CalendarAgent:
             interactive: If True, use interactive mode with conflict checking
 
         Returns:
-            Dict with 'text' (Claude's response) and 'tool_results' (captured MCP data)
+            Summary of created events (str)
         """
         if interactive:
-            text_result = asyncio.run(
+            return asyncio.run(
                 self.process_events_interactive(
                     user_input, screenshot_paths=screenshot_paths
                 )
             )
-            # Interactive mode returns string, wrap it in dict format
-            return {
-                "text": text_result,
-                "tool_results": self.captured_tool_results,
-            }
         else:
-            return asyncio.run(
+            result = asyncio.run(
                 self.process_events(user_input, screenshot_paths=screenshot_paths)
             )
+            # process_events returns dict with 'text' and 'tool_results'
+            return result["text"]
 
 
 def create_events(
