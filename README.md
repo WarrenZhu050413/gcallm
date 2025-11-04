@@ -1,6 +1,6 @@
-# gcallm - Google Calendar + LLM
+# gcallm: Google Calendar w/ Claude
 
-A simple, beautiful CLI that uses Claude to add events to Google Calendar using natural language.
+Simple CLI to use Claude to add events to gcal in natural language. It has been helpful for me to quickly add events from the terminal without opening the calendar UI and specifying everything manually!
 
 ```bash
 $ gcallm "Coffee with Sarah tomorrow at 2pm"
@@ -9,15 +9,6 @@ Coffee with Sarah
 - Date & Time: Tomorrow at 2:00 PM - 3:00 PM
 - Calendar: primary
 ```
-
-## Features
-
-- 🎯 **Simple**: Just describe your event in natural language
-- 🔗 **Smart URLs**: Automatically fetches and parses event pages
-- 📋 **Flexible Input**: Args, stdin, clipboard, or editor
-- 🎨 **Beautiful Output**: Color-coded, easy to scan
-- ⚡ **Fast**: Creates events immediately, no confirmation needed
-- 🤖 **Intelligent**: Claude handles date parsing and ambiguity
 
 ## Installation
 
@@ -71,10 +62,20 @@ uv tool install --editable .
    - Add your email address as a test user
    - Note: Changes may take a few minutes to propagate
 
-### 2. Authenticate the MCP Server
+### 2. Configure OAuth Credentials
+
+Save your OAuth credentials file to a permanent location (e.g., `~/gcp-oauth.keys.json`), then run:
 
 ```bash
-# Set the credentials path
+gcallm setup ~/gcp-oauth.keys.json
+```
+
+This saves the path so `gcallm` automatically uses it. You only need to do this once!
+
+### 3. Authenticate the MCP Server
+
+```bash
+# Set the credentials path (gcallm setup does this automatically, but you can also set it manually)
 export GOOGLE_OAUTH_CREDENTIALS="/path/to/your/gcp-oauth.keys.json"
 
 # Run authentication
@@ -84,11 +85,11 @@ npx @cocal/google-calendar-mcp auth
 This will:
 - Open your browser for Google OAuth
 - Request calendar permissions
-- Save authentication tokens locally
+- Save authentication tokens to `~/.config/google-calendar-mcp/tokens.json`
 
-**Note**: In test mode, tokens expire after 7 days. Re-run the auth command to refresh.
+**Note about "test mode"**: If your Google Cloud app is in test mode (the default), refresh tokens expire after 7 days for security. You'll need to re-run `npx @cocal/google-calendar-mcp auth` weekly. For personal use, this is fine! To avoid this, publish your app in Google Cloud Console.
 
-### 3. Verify Setup
+### 4. Verify Setup
 
 ```bash
 gcallm verify
@@ -129,19 +130,40 @@ gcallm
 ### Commands
 
 ```bash
+# Setup & Configuration
+gcallm setup ~/gcp-oauth.keys.json  # Configure OAuth credentials path
+gcallm prompt                        # Customize system prompt in editor
+gcallm prompt --reset                # Reset to default system prompt
+
+# Calendar Operations
 gcallm verify      # Verify setup
 gcallm status      # Show calendar status
 gcallm calendars   # List available calendars
+gcallm --help      # Show help
 ```
 
-## Features
 
-- 🎯 **Simple**: Just describe your event in natural language
-- 🔗 **Smart URLs**: Automatically fetches and parses event pages
-- 📋 **Flexible Input**: Args, stdin, clipboard, or editor
-- 🎨 **Beautiful Output**: Color-coded, easy to scan
-- ⚡ **Fast**: Creates events immediately, no confirmation needed
-- 🤖 **Intelligent**: Claude handles date parsing and ambiguity
+## Configuration
+
+### OAuth Credentials
+
+After running `gcallm setup`, your OAuth credentials path is saved to `~/.config/gcallm/config.json`. This means you never have to set `GOOGLE_OAUTH_CREDENTIALS` environment variable manually!
+
+### Custom System Prompt
+
+Want to customize how Claude interprets your events? Use `gcallm prompt` to edit the system prompt:
+
+```bash
+gcallm prompt  # Opens editor with current prompt
+```
+
+Example customizations:
+- Change default meeting duration
+- Add specific instructions for handling certain event types
+- Customize output format
+- Add domain-specific terminology
+
+To revert to the default: `gcallm prompt --reset`
 
 ## How It Works
 
@@ -200,10 +222,6 @@ make lint     # Lint with ruff
 ```
 
 ## Troubleshooting
-
-### "Invalid MCP configuration" Error
-
-This has been fixed in the current version. If you see this, make sure you're on the latest commit.
 
 ### "Calendar tools not available"
 

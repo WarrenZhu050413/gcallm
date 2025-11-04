@@ -71,7 +71,6 @@ def default_command():
         # Create events using Claude agent
         result = create_events(
             user_input=user_input,
-            calendar="primary",
             console=console
         )
 
@@ -138,7 +137,6 @@ def add_command(
         # Create events using Claude agent
         result = create_events(
             user_input=user_input,
-            calendar=calendar,
             console=console
         )
 
@@ -260,6 +258,130 @@ def calendars() -> None:
         raise typer.Exit(code=1)
 
 
+@app.command()
+def setup(
+    oauth_path: Optional[str] = typer.Argument(None, help="Path to OAuth credentials JSON file")
+) -> None:
+    """Configure OAuth credentials path.
+
+    [bold cyan]EXAMPLES[/bold cyan]:
+      [dim]$[/dim] gcallm setup ~/gcp-oauth.keys.json
+      [dim]$[/dim] gcallm setup    [dim]# Interactive prompt[/dim]
+    """
+    from gcallm.config import set_oauth_credentials_path, get_oauth_credentials_path
+    from pathlib import Path
+
+    try:
+        # If no path provided, ask for it
+        if not oauth_path:
+            current = get_oauth_credentials_path()
+            if current:
+                console.print(f"[dim]Current OAuth path:[/dim] {current}")
+                console.print()
+
+            oauth_path = typer.prompt("Enter path to OAuth credentials JSON file")
+
+        # Expand and validate path
+        oauth_path_expanded = Path(oauth_path).expanduser().resolve()
+
+        if not oauth_path_expanded.exists():
+            console.print(f"[red]✗ File not found:[/red] {oauth_path_expanded}")
+            raise typer.Exit(code=1)
+
+        if not oauth_path_expanded.is_file():
+            console.print(f"[red]✗ Not a file:[/red] {oauth_path_expanded}")
+            raise typer.Exit(code=1)
+
+        # Save to config
+        set_oauth_credentials_path(str(oauth_path_expanded))
+
+        console.print()
+        console.print(f"[green]✓[/green] OAuth credentials path configured:")
+        console.print(f"  {oauth_path_expanded}")
+        console.print()
+        console.print("[dim]gcallm will now automatically use these credentials[/dim]")
+        console.print()
+
+    except typer.Abort:
+        console.print("\n[yellow]Cancelled[/yellow]")
+        raise typer.Exit(code=130)
+    except Exception as e:
+        format_error(str(e), console)
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def prompt(
+    reset: bool = typer.Option(False, "--reset", "-r", help="Reset to default system prompt")
+) -> None:
+    """Customize the system prompt via editor.
+
+    [bold cyan]EXAMPLES[/bold cyan]:
+      [dim]$[/dim] gcallm prompt          [dim]# Edit custom prompt in editor[/dim]
+      [dim]$[/dim] gcallm prompt --reset  [dim]# Reset to default prompt[/dim]
+    """
+    from gcallm.config import get_custom_system_prompt, set_custom_system_prompt, clear_custom_system_prompt
+    from gcallm.agent import SYSTEM_PROMPT
+    from gcallm.helpers.input import open_editor
+    import tempfile
+
+    try:
+        if reset:
+            # Reset to default
+            clear_custom_system_prompt()
+            console.print()
+            console.print("[green]✓[/green] System prompt reset to default")
+            console.print()
+            return
+
+        # Get current custom prompt or default
+        current_prompt = get_custom_system_prompt() or SYSTEM_PROMPT
+
+        # Write to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tf:
+            tf.write(current_prompt)
+            tf.write("\n\n")
+            tf.write("# Edit the system prompt above\n")
+            tf.write("# Lines starting with # will be ignored\n")
+            tf.write("# Save and quit to update the prompt\n")
+            temp_path = tf.name
+
+        try:
+            # Open editor
+            console.print()
+            console.print("[cyan]Opening editor to customize system prompt...[/cyan]")
+            console.print()
+
+            new_prompt = open_editor(temp_path)
+
+            if not new_prompt or new_prompt.strip() == "":
+                console.print("[yellow]No changes made[/yellow]")
+                return
+
+            # Save custom prompt
+            set_custom_system_prompt(new_prompt)
+
+            console.print()
+            console.print("[green]✓[/green] Custom system prompt saved")
+            console.print()
+            console.print("[dim]gcallm will now use your custom prompt[/dim]")
+            console.print("[dim]Use 'gcallm prompt --reset' to revert to default[/dim]")
+            console.print()
+
+        finally:
+            # Clean up temp file
+            import os
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+
+    except typer.Abort:
+        console.print("\n[yellow]Cancelled[/yellow]")
+        raise typer.Exit(code=130)
+    except Exception as e:
+        format_error(str(e), console)
+        raise typer.Exit(code=1)
+
+
 # Intercept execution to handle default behavior
 def main():
     """Main CLI entry point with default command handling."""
@@ -273,7 +395,7 @@ def main():
         else:
             # No args and no stdin - show help
             app()
-    elif sys.argv[1] not in ["verify", "status", "calendars", "add", "--help", "-h", "--install-completion", "--show-completion"]:
+    elif sys.argv[1] not in ["verify", "status", "calendars", "add", "setup", "prompt", "--help", "-h", "--install-completion", "--show-completion"]:
         # Unknown command - treat as event description
         default_command()
     else:

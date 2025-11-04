@@ -1,6 +1,7 @@
 """Claude Agent with Google Calendar MCP access."""
 
 import asyncio
+import os
 from typing import Optional
 
 from claude_agent_sdk import (
@@ -14,13 +15,17 @@ from claude_agent_sdk.types import McpStdioServerConfig
 from rich.console import Console
 from rich.panel import Panel
 
+from gcallm.config import get_oauth_credentials_path, get_custom_system_prompt
+
 
 SYSTEM_PROMPT = """You are a calendar assistant. The user will provide event descriptions in natural language, URLs, or structured text.
 
+CRITICAL: You MUST use the Google Calendar MCP tools (prefixed with mcp__google-calendar__). DO NOT use bash tools like gcalcli.
+
 ALWAYS follow this workflow:
-1. First, get the current date and time using the get-current-time tool
+1. First, get the current date and time using mcp__google-calendar__get-current-time
 2. If the input contains URLs, use WebFetch to fetch the page and extract event details
-3. Parse the event information and create events using the create-event tool
+3. Parse the event information and create events using mcp__google-calendar__create-event
 4. After creating events, provide a clear summary of what was created
 
 GUIDELINES:
@@ -63,16 +68,20 @@ class CalendarAgent:
         self.console = console or Console()
         self.model = model
 
-    async def process_events(self, user_input: str, calendar: str = "primary") -> str:
+    async def process_events(self, user_input: str) -> str:
         """Process event description and create events using GCal MCP.
 
         Args:
             user_input: Natural language event description, URL, or structured text
-            calendar: Target calendar (default: primary)
 
         Returns:
             Summary of created events
         """
+        # Load OAuth credentials path from config
+        oauth_path = get_oauth_credentials_path()
+        if oauth_path:
+            os.environ["GOOGLE_OAUTH_CREDENTIALS"] = oauth_path
+
         # EXPLICIT MCP configuration for Google Calendar
         # Using McpStdioServerConfig with only required fields
         google_calendar_mcp: McpStdioServerConfig = {
@@ -80,17 +89,18 @@ class CalendarAgent:
             "args": ["-y", "@cocal/google-calendar-mcp"],
         }
 
+        # Use custom system prompt if configured, otherwise use default
+        system_prompt = get_custom_system_prompt() or SYSTEM_PROMPT
+
         options = ClaudeAgentOptions(
             model=self.model,
-            system_prompt=SYSTEM_PROMPT,
+            system_prompt=system_prompt,
             permission_mode="bypassPermissions",
             max_turns=10,
             mcp_servers={"google-calendar": google_calendar_mcp},
         )
 
         full_prompt = f"""User input: {user_input}
-
-Target calendar: {calendar}
 
 Please create the event(s) as described."""
 
@@ -108,34 +118,27 @@ Please create the event(s) as described."""
                             response_text.append(block.text)
                         elif isinstance(block, ToolUseBlock):
                             # Show tool usage (for transparency)
-                            if block.name == "mcp__google-calendar__create-event":
-                                self.console.print(f"[dim]Creating event...[/dim]")
-                            elif block.name == "mcp__google-calendar__get-current-time":
-                                self.console.print(f"[dim]Getting current time...[/dim]")
-                            elif block.name == "WebFetch":
-                                self.console.print(f"[dim]Fetching URL...[/dim]")
+                            self.console.print(f"[dim]Using tool: {block.name}[/dim]")
 
         return "".join(response_text)
 
-    def run(self, user_input: str, calendar: str = "primary") -> str:
+    def run(self, user_input: str) -> str:
         """Synchronous wrapper for process_events.
 
         Args:
             user_input: Natural language event description
-            calendar: Target calendar
 
         Returns:
             Summary of created events
         """
-        return asyncio.run(self.process_events(user_input, calendar))
+        return asyncio.run(self.process_events(user_input))
 
 
-def create_events(user_input: str, calendar: str = "primary", console: Optional[Console] = None) -> str:
+def create_events(user_input: str, console: Optional[Console] = None) -> str:
     """Main entry point for creating events.
 
     Args:
         user_input: Natural language event description, URL, or structured text
-        calendar: Target calendar (default: primary)
         console: Rich console for output
 
     Returns:
@@ -155,7 +158,7 @@ def create_events(user_input: str, calendar: str = "primary", console: Optional[
 
     # Show processing indicator
     with console.status("[bold green]🤖 Processing with Claude...", spinner="dots"):
-        result = agent.run(user_input, calendar)
+        result = agent.run(user_input)
 
     console.print()
     return result
