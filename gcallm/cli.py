@@ -10,6 +10,7 @@ from rich.console import Console
 
 from gcallm.agent import create_events
 from gcallm.formatters import format_error, format_no_input_warning
+from gcallm.formatter import format_event_response
 from gcallm.helpers.input import get_input
 
 
@@ -74,9 +75,8 @@ def default_command():
             console=console
         )
 
-        # Display result
-        console.print(result)
-        console.print()
+        # Display result with Rich formatting
+        format_event_response(result, console)
 
     except KeyboardInterrupt:
         console.print("\n[yellow]Cancelled by user[/yellow]")
@@ -144,8 +144,7 @@ def add_command(
         if output_format == OutputFormat.JSON:
             console.print_json(data={"success": True, "result": result})
         else:
-            console.print(result)
-            console.print()
+            format_event_response(result, console)
 
     except KeyboardInterrupt:
         console.print("\n[yellow]Cancelled by user[/yellow]")
