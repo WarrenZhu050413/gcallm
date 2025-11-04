@@ -73,12 +73,12 @@ class CalendarAgent:
         Returns:
             Summary of created events
         """
-        # Configure Google Calendar MCP server explicitly
-        google_calendar_mcp = McpStdioServerConfig(
-            command="npx",
-            args=["-y", "@cocal/google-calendar-mcp"],
-            env=None,
-        )
+        # EXPLICIT MCP configuration for Google Calendar
+        # Using McpStdioServerConfig with only required fields
+        google_calendar_mcp: McpStdioServerConfig = {
+            "command": "npx",
+            "args": ["-y", "@cocal/google-calendar-mcp"],
+        }
 
         options = ClaudeAgentOptions(
             model=self.model,
@@ -86,7 +86,6 @@ class CalendarAgent:
             permission_mode="bypassPermissions",
             max_turns=10,
             mcp_servers={"google-calendar": google_calendar_mcp},
-            setting_sources=["user", "project"],  # Also try loading from config files
         )
 
         full_prompt = f"""User input: {user_input}
