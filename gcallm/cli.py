@@ -27,6 +27,7 @@ console = Console()
 
 class OutputFormat(str, Enum):
     """Output format for CLI commands."""
+
     RICH = "rich"
     JSON = "json"
 
@@ -70,10 +71,7 @@ def default_command():
             raise typer.Exit(code=1)
 
         # Create events using Claude agent
-        result = create_events(
-            user_input=user_input,
-            console=console
-        )
+        result = create_events(user_input=user_input, console=console)
 
         # Display result with Rich formatting
         format_event_response(result, console)
@@ -89,39 +87,68 @@ def default_command():
 @app.command(name="add")
 def add_command(
     event_description: Optional[str] = typer.Argument(
-        None,
-        help="Event description in natural language, or URL to fetch"
+        None, help="Event description in natural language, or URL to fetch"
     ),
     clipboard: bool = typer.Option(
         False,
         "--clipboard",
         "-c",
-        help="Read event description from clipboard (pbpaste)"
+        help="Read event description from clipboard (pbpaste)",
+    ),
+    screenshot: bool = typer.Option(
+        False,
+        "--screenshot",
+        "-s",
+        help="Use most recent screenshot from Desktop for event details",
+    ),
+    screenshots: Optional[int] = typer.Option(
+        None, "--screenshots", help="Use latest N screenshots from Desktop"
     ),
     calendar: str = typer.Option(
-        "primary",
-        "--calendar",
-        help="Target calendar (default: primary)"
+        "primary", "--calendar", help="Target calendar (default: primary)"
     ),
     output_format: OutputFormat = typer.Option(
-        OutputFormat.RICH,
-        "--output-format",
-        help="Output format"
+        OutputFormat.RICH, "--output-format", help="Output format"
     ),
 ) -> None:
-    """Add events to Google Calendar using natural language.
+    """Add events to Google Calendar using natural language or screenshots.
 
     [bold cyan]EXAMPLES[/bold cyan]:
       [dim]$[/dim] gcallm "Coffee with Sarah tomorrow at 2pm"
       [dim]$[/dim] gcallm "https://www.aiandsoul.org/..."
       [dim]$[/dim] gcallm --clipboard
+      [dim]$[/dim] gcallm --screenshot    # Use latest screenshot
+      [dim]$[/dim] gcallm -s              # Short form
+      [dim]$[/dim] gcallm --screenshots 3 # Use latest 3 screenshots
       [dim]$[/dim] pbpaste | gcallm
       [dim]$[/dim] cat events.txt | gcallm
       [dim]$[/dim] gcallm  # Opens editor
     """
     try:
+        # Determine screenshot count
+        screenshot_count = None
+        if screenshot:
+            screenshot_count = 1
+        elif screenshots:
+            screenshot_count = screenshots
+
+        # Get screenshot paths if requested
+        screenshot_paths = None
+        if screenshot_count:
+            try:
+                from gcallm.screenshot import find_recent_screenshots
+
+                screenshot_paths = find_recent_screenshots(count=screenshot_count)
+            except ValueError as e:
+                console.print(f"[red]Error:[/red] {e}")
+                console.print("[dim]Take a screenshot (⌘+Shift+4) and try again.[/dim]")
+                raise typer.Exit(code=1)
+            except FileNotFoundError as e:
+                console.print(f"[red]Error:[/red] {e}")
+                raise typer.Exit(code=1)
+
         # Determine if we should use editor mode
-        use_editor = not event_description and not clipboard
+        use_editor = not event_description and not clipboard and not screenshot_paths
 
         # Get input from various sources
         user_input = get_input(
@@ -130,14 +157,18 @@ def add_command(
             use_editor=use_editor,
         )
 
-        if not user_input:
+        # Allow empty input if screenshots provided
+        if not user_input and not screenshot_paths:
             format_no_input_warning(console)
             raise typer.Exit(code=1)
 
+        # Default to generic prompt if only screenshots provided
+        if not user_input and screenshot_paths:
+            user_input = "Please analyze the screenshot(s) and create calendar events."
+
         # Create events using Claude agent
         result = create_events(
-            user_input=user_input,
-            console=console
+            user_input=user_input, screenshot_paths=screenshot_paths, console=console
         )
 
         # Display result
@@ -169,9 +200,12 @@ def verify() -> None:
 
         # Try to get current time via MCP (basic connectivity test)
         from gcallm.agent import CalendarAgent
+
         agent = CalendarAgent(console=console, model="haiku")
 
-        with console.status("[bold green]Checking Google Calendar MCP...", spinner="dots"):
+        with console.status(
+            "[bold green]Checking Google Calendar MCP...", spinner="dots"
+        ):
             # Simple test: get current time
             result = agent.run("What is the current date and time?")
 
@@ -182,7 +216,7 @@ def verify() -> None:
             console.print("[green]✅ All checks passed![/green]")
             console.print()
             console.print("You're ready to use gcallm!")
-            console.print("Try: [cyan]gcallm \"Meeting tomorrow at 3pm\"[/cyan]")
+            console.print('Try: [cyan]gcallm "Meeting tomorrow at 3pm"[/cyan]')
         else:
             console.print("[red]✗[/red] Google Calendar MCP: Not responding")
             console.print()
@@ -217,6 +251,7 @@ def status() -> None:
         console.print()
 
         from gcallm.agent import CalendarAgent
+
         agent = CalendarAgent(console=console, model="haiku")
 
         with console.status("[bold green]Fetching calendar info...", spinner="dots"):
@@ -244,6 +279,7 @@ def calendars() -> None:
         console.print()
 
         from gcallm.agent import CalendarAgent
+
         agent = CalendarAgent(console=console, model="haiku")
 
         with console.status("[bold green]Fetching calendars...", spinner="dots"):
@@ -259,7 +295,9 @@ def calendars() -> None:
 
 @app.command()
 def setup(
-    oauth_path: Optional[str] = typer.Argument(None, help="Path to OAuth credentials JSON file")
+    oauth_path: Optional[str] = typer.Argument(
+        None, help="Path to OAuth credentials JSON file"
+    )
 ) -> None:
     """Configure OAuth credentials path.
 
@@ -311,7 +349,9 @@ def setup(
 
 @app.command()
 def prompt(
-    reset: bool = typer.Option(False, "--reset", "-r", help="Reset to default system prompt")
+    reset: bool = typer.Option(
+        False, "--reset", "-r", help="Reset to default system prompt"
+    )
 ) -> None:
     """Customize the system prompt via editor.
 
@@ -319,7 +359,11 @@ def prompt(
       [dim]$[/dim] gcallm prompt          [dim]# Edit custom prompt in editor[/dim]
       [dim]$[/dim] gcallm prompt --reset  [dim]# Reset to default prompt[/dim]
     """
-    from gcallm.config import get_custom_system_prompt, set_custom_system_prompt, clear_custom_system_prompt
+    from gcallm.config import (
+        get_custom_system_prompt,
+        set_custom_system_prompt,
+        clear_custom_system_prompt,
+    )
     from gcallm.agent import SYSTEM_PROMPT
     from gcallm.helpers.input import open_editor
     import tempfile
@@ -337,7 +381,7 @@ def prompt(
         current_prompt = get_custom_system_prompt() or SYSTEM_PROMPT
 
         # Write to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tf:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tf:
             tf.write(current_prompt)
             tf.write("\n\n")
             tf.write("# Edit the system prompt above\n")
@@ -370,6 +414,7 @@ def prompt(
         finally:
             # Clean up temp file
             import os
+
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
@@ -394,7 +439,18 @@ def main():
         else:
             # No args and no stdin - show help
             app()
-    elif sys.argv[1] not in ["verify", "status", "calendars", "add", "setup", "prompt", "--help", "-h", "--install-completion", "--show-completion"]:
+    elif sys.argv[1] not in [
+        "verify",
+        "status",
+        "calendars",
+        "add",
+        "setup",
+        "prompt",
+        "--help",
+        "-h",
+        "--install-completion",
+        "--show-completion",
+    ]:
         # Unknown command - treat as event description
         default_command()
     else:
