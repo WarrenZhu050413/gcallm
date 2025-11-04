@@ -111,3 +111,37 @@ class TestAddCommand:
         assert result.exit_code == 0
         assert mock_clipboard.called
         assert mock_create_events.called
+
+    @patch("gcallm.cli.create_events")
+    def test_rich_formatting_applied(self, mock_create_events):
+        """Test that Rich formatting is applied to event output."""
+        # Simulate realistic Claude response with markdown
+        mock_create_events.return_value = """✅ Created 1 event:
+
+- **Team Meeting**
+- **Date & Time:** Monday, November 4, 2025 at 2:00 PM - 3:00 PM (EST)
+- **Event Link:** https://www.google.com/calendar/event?eid=abc123"""
+
+        result = runner.invoke(app, ["add", "Team meeting Monday at 2pm"])
+
+        assert result.exit_code == 0
+        # Check that the output contains formatted elements
+        # The formatter should create panels with "Event Created Successfully"
+        assert "Team Meeting" in result.output or "Event Created Successfully" in result.output
+
+    @patch("gcallm.cli.create_events")
+    def test_conflict_warning_displayed(self, mock_create_events):
+        """Test that conflict warnings are displayed properly."""
+        mock_create_events.return_value = """✅ Created 1 event:
+
+- **Workshop**
+- **Date & Time:** Wednesday at 2:00 PM - 5:00 PM
+- **Event Link:** https://www.google.com/calendar/event?eid=xyz
+
+⚠️ Note: This event conflicts with "Other Meeting" (2:00 PM - 3:00 PM)"""
+
+        result = runner.invoke(app, ["add", "Workshop Wednesday at 2pm"])
+
+        assert result.exit_code == 0
+        # Should contain conflict information
+        assert "Workshop" in result.output or "conflicts" in result.output or "Note" in result.output

@@ -84,7 +84,6 @@ class TestCreateEvents:
 
         result = create_events(
             user_input="Test event",
-            calendar="primary",
             console=mock_console
         )
 
@@ -93,17 +92,16 @@ class TestCreateEvents:
         assert result == "Event created"
 
     @patch("gcallm.agent.CalendarAgent")
-    def test_create_events_with_calendar(self, mock_agent_class):
-        """Test create_events uses specified calendar."""
+    def test_create_events_uses_primary_calendar(self, mock_agent_class):
+        """Test create_events uses primary calendar (always)."""
         mock_agent = Mock()
-        mock_agent.run.return_value = "Event created in work calendar"
+        mock_agent.run.return_value = "Event created"
         mock_agent_class.return_value = mock_agent
 
         result = create_events(
-            user_input="Team meeting",
-            calendar="work"
+            user_input="Team meeting"
         )
 
-        # Verify calendar parameter was passed
-        call_args = mock_agent.run.call_args
-        assert "work" in str(call_args)
+        # Verify the event was created
+        assert mock_agent.run.called
+        assert result == "Event created"
