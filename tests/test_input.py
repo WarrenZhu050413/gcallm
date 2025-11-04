@@ -63,6 +63,7 @@ class TestGetFromClipboard:
     def test_clipboard_error(self, mock_run):
         """Test clipboard returns None on error."""
         import subprocess
+
         mock_run.side_effect = subprocess.CalledProcessError(1, "pbpaste")
 
         result = get_from_clipboard()

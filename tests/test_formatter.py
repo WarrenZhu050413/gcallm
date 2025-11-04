@@ -69,7 +69,9 @@ class TestFormatter:
 
         # The display should NOT contain "..." for truncation
         # Current implementation truncates at 70 chars, so this should fail
-        assert "..." not in result, "URL should not be truncated with ellipsis - breaks clickability"
+        assert (
+            "..." not in result
+        ), "URL should not be truncated with ellipsis - breaks clickability"
 
     def test_event_with_description(self):
         """Test formatting event with description field."""
@@ -229,7 +231,9 @@ Please specify:
 
     def test_no_success_indicator(self):
         """Test response without success indicator falls back to markdown."""
-        response = """The calendar API is currently unavailable. Please try again later."""
+        response = (
+            """The calendar API is currently unavailable. Please try again later."""
+        )
 
         output = StringIO()
         console = Console(file=output, force_terminal=True, width=80)

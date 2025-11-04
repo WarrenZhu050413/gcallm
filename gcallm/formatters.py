@@ -15,11 +15,9 @@ def format_error(error_msg: str, console: Optional[Console] = None) -> None:
     """
     console = console or Console()
     console.print()
-    console.print(Panel(
-        f"[red]{error_msg}[/red]",
-        title="❌ Error",
-        border_style="red"
-    ))
+    console.print(
+        Panel(f"[red]{error_msg}[/red]", title="❌ Error", border_style="red")
+    )
     console.print()
 
 
@@ -34,7 +32,7 @@ def format_no_input_warning(console: Optional[Console] = None) -> None:
     console.print("[yellow]⚠️  No input provided[/yellow]")
     console.print()
     console.print("Usage:")
-    console.print("  [cyan]gcallm \"Meeting tomorrow at 3pm\"[/cyan]  # Direct input")
+    console.print('  [cyan]gcallm "Meeting tomorrow at 3pm"[/cyan]  # Direct input')
     console.print("  [cyan]gcallm --clipboard[/cyan]                  # From clipboard")
     console.print("  [cyan]pbpaste | gcallm[/cyan]                    # From stdin")
     console.print("  [cyan]gcallm[/cyan]                              # Open editor")
@@ -50,9 +48,7 @@ def format_success_message(message: str, console: Optional[Console] = None) -> N
     """
     console = console or Console()
     console.print()
-    console.print(Panel(
-        f"[green]{message}[/green]",
-        title="✅ Success",
-        border_style="green"
-    ))
+    console.print(
+        Panel(f"[green]{message}[/green]", title="✅ Success", border_style="green")
+    )
     console.print()

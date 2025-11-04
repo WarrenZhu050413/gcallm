@@ -37,7 +37,11 @@ def get_from_clipboard() -> Optional[str]:
         )
         content = result.stdout.strip()
         return content if content else None
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+    except (
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+        FileNotFoundError,
+    ):
         return None
 
 
@@ -71,7 +75,8 @@ def get_from_editor() -> Optional[str]:
 
             # Filter out comment lines and empty lines
             lines = [
-                line for line in content.split("\n")
+                line
+                for line in content.split("\n")
                 if line.strip() and not line.strip().startswith("#")
             ]
 

@@ -85,20 +85,22 @@ class TestCalendarAgent:
             "summary": "SUFRA - Arab Heritage Night",
             "start_time": "2025-11-08T20:30:00",
             "end_time": "2025-11-08T23:00:00",
-            "location": "Lowell Dining Hall"
+            "location": "Lowell Dining Hall",
         }
 
         # Create mock tool result block (MCP tool response)
         mock_tool_result = Mock()
         mock_tool_result.__class__ = ToolResultBlock
-        mock_tool_result.content = [{
-            "event_id": "706i26dn9im",
-            "summary": "SUFRA - Arab Heritage Night",
-            "start": "2025-11-08T20:30:00-05:00",
-            "end": "2025-11-08T23:00:00-05:00",
-            "location": "Lowell Dining Hall",
-            "htmlLink": "https://www.google.com/calendar/event?eid=NzA2aTI2ZG45aW1qbnBjYm1wa2FyYzhpdnMgd3podUBjb2xsZWdlLmhhcnZhcmQuZWR1"
-        }]
+        mock_tool_result.content = [
+            {
+                "event_id": "706i26dn9im",
+                "summary": "SUFRA - Arab Heritage Night",
+                "start": "2025-11-08T20:30:00-05:00",
+                "end": "2025-11-08T23:00:00-05:00",
+                "location": "Lowell Dining Hall",
+                "htmlLink": "https://www.google.com/calendar/event?eid=NzA2aTI2ZG45aW1qbnBjYm1wa2FyYzhpdnMgd3podUBjb2xsZWdlLmhhcnZhcmQuZWR1",
+            }
+        ]
         mock_tool_result.is_error = False
 
         # Create mock text block
@@ -132,6 +134,7 @@ class TestCalendarAgent:
         # Capture console output
         output = StringIO()
         from rich.console import Console
+
         console = Console(file=output, force_terminal=True, width=120)
 
         agent = CalendarAgent(console=console)
@@ -143,7 +146,10 @@ class TestCalendarAgent:
         console_output = output.getvalue()
         assert "mcp__google-calendar__create-event" in console_output
         # Should log the full event details from the tool result
-        assert "SUFRA - Arab Heritage Night" in console_output or "706i26dn9im" in console_output
+        assert (
+            "SUFRA - Arab Heritage Night" in console_output
+            or "706i26dn9im" in console_output
+        )
 
 
 class TestCreateEvents:
@@ -161,10 +167,7 @@ class TestCreateEvents:
         mock_console.status.return_value.__enter__ = Mock()
         mock_console.status.return_value.__exit__ = Mock()
 
-        result = create_events(
-            user_input="Test event",
-            console=mock_console
-        )
+        result = create_events(user_input="Test event", console=mock_console)
 
         # Verify input was displayed
         assert mock_console.print.called
@@ -177,9 +180,7 @@ class TestCreateEvents:
         mock_agent.run.return_value = "Event created"
         mock_agent_class.return_value = mock_agent
 
-        result = create_events(
-            user_input="Team meeting"
-        )
+        result = create_events(user_input="Team meeting")
 
         # Verify the event was created
         assert mock_agent.run.called

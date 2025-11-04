@@ -127,7 +127,10 @@ class TestAddCommand:
         assert result.exit_code == 0
         # Check that the output contains formatted elements
         # The formatter should create panels with "Event Created Successfully"
-        assert "Team Meeting" in result.output or "Event Created Successfully" in result.output
+        assert (
+            "Team Meeting" in result.output
+            or "Event Created Successfully" in result.output
+        )
 
     @patch("gcallm.cli.create_events")
     def test_conflict_warning_displayed(self, mock_create_events):
@@ -144,4 +147,8 @@ class TestAddCommand:
 
         assert result.exit_code == 0
         # Should contain conflict information
-        assert "Workshop" in result.output or "conflicts" in result.output or "Note" in result.output
+        assert (
+            "Workshop" in result.output
+            or "conflicts" in result.output
+            or "Note" in result.output
+        )
