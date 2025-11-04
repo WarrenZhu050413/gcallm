@@ -1,6 +1,5 @@
 """Screenshot discovery and management for event creation."""
 
-import os
 from pathlib import Path
 
 

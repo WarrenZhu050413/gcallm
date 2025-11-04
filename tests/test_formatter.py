@@ -1,6 +1,5 @@
 """Tests for the formatter module."""
 
-import pytest
 from io import StringIO
 from rich.console import Console
 

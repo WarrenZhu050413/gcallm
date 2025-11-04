@@ -1,7 +1,6 @@
 """Conflict detection and parsing for interactive mode."""
 
 import re
-from typing import Optional
 from dataclasses import dataclass
 
 
@@ -32,7 +31,6 @@ class ConflictReport:
             "IMPORTANT CONFLICTS DETECTED" in response or needs_user_decision
         )
         has_minor_conflicts = "MINOR CONFLICTS" in response
-        has_no_conflicts = "NO CONFLICTS" in response
 
         # Determine if we need to stop and ask user
         if has_important_conflicts:

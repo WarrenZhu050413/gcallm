@@ -368,7 +368,7 @@ def setup(
         set_oauth_credentials_path(str(oauth_path_expanded))
 
         console.print()
-        console.print(f"[green]✓[/green] OAuth credentials path configured:")
+        console.print("[green]✓[/green] OAuth credentials path configured:")
         console.print(f"  {oauth_path_expanded}")
         console.print()
         console.print("[dim]gcallm will now automatically use these credentials[/dim]")

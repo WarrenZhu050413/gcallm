@@ -1,6 +1,5 @@
 """Tests for conflict detection and parsing."""
 
-import pytest
 from gcallm.conflicts import (
     ConflictReport,
     extract_proposed_events,

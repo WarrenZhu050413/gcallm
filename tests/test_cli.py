@@ -1,7 +1,6 @@
 """Tests for CLI commands."""
 
 from unittest.mock import Mock, patch
-import pytest
 from typer.testing import CliRunner
 
 from gcallm.cli import app
@@ -152,3 +151,68 @@ class TestAddCommand:
             or "conflicts" in result.output
             or "Note" in result.output
         )
+
+    @patch("gcallm.agent.CalendarAgent")
+    def test_cli_uses_tool_results_when_available(self, mock_agent_class):
+        """Test that CLI prioritizes tool results over text response."""
+        from gcallm.agent import create_events
+
+        # Mock agent to return dict with tool_results
+        mock_agent = Mock()
+        mock_agent.run.return_value = {
+            "text": "Event created successfully",
+            "tool_results": [
+                {
+                    "event_id": "test123",
+                    "summary": "Test Event",
+                    "start": "2025-11-06T14:00:00-05:00",
+                    "end": "2025-11-06T15:00:00-05:00",
+                    "htmlLink": "https://www.google.com/calendar/event?eid=test123",
+                }
+            ],
+        }
+        mock_agent_class.return_value = mock_agent
+
+        # Capture console output
+        from io import StringIO
+        from rich.console import Console
+
+        output = StringIO()
+        console = Console(file=output, force_terminal=True, width=120)
+
+        # Execute
+        _result = create_events("Test event tomorrow at 2pm", console=console)
+
+        # Verify tool results were used (should see formatted event, not raw text)
+        console_output = output.getvalue()
+        assert "Test Event" in console_output
+        assert "November" in console_output or "Nov" in console_output
+        assert "Event Created Successfully" in console_output
+
+    @patch("gcallm.agent.CalendarAgent")
+    def test_cli_falls_back_to_text_when_no_tool_results(self, mock_agent_class):
+        """Test that CLI falls back to text formatting when tool_results empty."""
+        from gcallm.agent import create_events
+
+        # Mock agent to return dict with empty tool_results
+        mock_agent = Mock()
+        mock_agent.run.return_value = {
+            "text": "✅ Created 1 event:\n\n- **Fallback Event**\n- **Date & Time:** Tomorrow at 3pm",
+            "tool_results": [],
+        }
+        mock_agent_class.return_value = mock_agent
+
+        # Capture console output
+        from io import StringIO
+        from rich.console import Console
+
+        output = StringIO()
+        console = Console(file=output, force_terminal=True, width=120)
+
+        # Execute
+        _result = create_events("Fallback event tomorrow at 3pm", console=console)
+
+        # Should still display something (fallback to markdown parsing)
+        console_output = output.getvalue()
+        # The markdown fallback or error handling should produce some output
+        assert len(console_output) > 0

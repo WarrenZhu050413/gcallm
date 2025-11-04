@@ -387,7 +387,7 @@ class CalendarAgent:
         user_input: str,
         screenshot_paths: Optional[list[str]] = None,
         interactive: bool = False,
-    ) -> str:
+    ) -> dict | str:
         """Synchronous wrapper for process_events.
 
         Args:
@@ -396,20 +396,23 @@ class CalendarAgent:
             interactive: If True, use interactive mode with conflict checking
 
         Returns:
-            Summary of created events (str)
+            Dict with 'text' and 'tool_results' (normal mode) or str (interactive mode)
         """
         if interactive:
-            return asyncio.run(
+            text_result = asyncio.run(
                 self.process_events_interactive(
                     user_input, screenshot_paths=screenshot_paths
                 )
             )
+            # Wrap in dict format for consistency
+            return {
+                "text": text_result,
+                "tool_results": self.captured_tool_results,
+            }
         else:
-            result = asyncio.run(
+            return asyncio.run(
                 self.process_events(user_input, screenshot_paths=screenshot_paths)
             )
-            # process_events returns dict with 'text' and 'tool_results'
-            return result["text"]
 
 
 def create_events(
@@ -465,4 +468,22 @@ def create_events(
         )
 
     console.print()
-    return result
+
+    # Handle result - can be either dict (with tool_results) or string (legacy/interactive)
+    if isinstance(result, dict):
+        # Use tool results if available, otherwise fall back to text
+        from gcallm.formatter import format_tool_results, format_event_response
+
+        if result.get("tool_results"):
+            format_tool_results(result["tool_results"], console)
+        else:
+            # Fallback to parsing Claude's text response
+            format_event_response(result["text"], console)
+
+        return result["text"]
+    else:
+        # Legacy string return (for interactive mode or old code paths)
+        from gcallm.formatter import format_event_response
+
+        format_event_response(result, console)
+        return result

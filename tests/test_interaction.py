@@ -1,8 +1,7 @@
 """Tests for user interaction handlers."""
 
-import pytest
 from io import StringIO
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from rich.console import Console
 
 from gcallm.interaction import (

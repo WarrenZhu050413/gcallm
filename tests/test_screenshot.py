@@ -1,6 +1,5 @@
 """Tests for screenshot discovery and integration."""
 
-import os
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -164,7 +163,7 @@ class TestCLIIntegration:
         mock_find_screenshots.return_value = ["/Users/test/Desktop/Screenshot.png"]
         mock_create_events.return_value = "Event created"
 
-        result = runner.invoke(app, ["add", "--screenshot"])
+        _result = runner.invoke(app, ["add", "--screenshot"])
 
         # Should call find_recent_screenshots with count=1
         assert mock_find_screenshots.called
@@ -212,7 +211,7 @@ class TestCLIIntegration:
         ]
         mock_create_events.return_value = "Events created"
 
-        result = runner.invoke(app, ["add", "--screenshots", "3"])
+        _result = runner.invoke(app, ["add", "--screenshots", "3"])
 
         # Should call with count=3
         assert mock_find_screenshots.called
@@ -234,7 +233,7 @@ class TestCLIIntegration:
         mock_find_screenshots.return_value = ["/Users/test/Desktop/Screenshot.png"]
         mock_create_events.return_value = "Event created"
 
-        result = runner.invoke(app, ["add", "--screenshot", "Team meeting notes"])
+        _result = runner.invoke(app, ["add", "--screenshot", "Team meeting notes"])
 
         # Should pass both screenshot and text
         assert mock_find_screenshots.called
@@ -276,7 +275,7 @@ class TestAgentIntegration:
         screenshot_paths = ["/Users/test/Desktop/Screenshot.png"]
 
         # Execute
-        result = await agent.process_events(
+        _result = await agent.process_events(
             "Create event from screenshot", screenshot_paths=screenshot_paths
         )
 

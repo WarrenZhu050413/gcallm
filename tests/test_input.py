@@ -1,9 +1,7 @@
 """Tests for input handling."""
 
-import pytest
-from unittest.mock import Mock, patch, mock_open
+from unittest.mock import Mock, patch
 from io import StringIO
-import sys
 
 from gcallm.helpers.input import (
     get_from_stdin,

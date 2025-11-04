@@ -141,7 +141,7 @@ class TestCalendarAgent:
         agent = CalendarAgent(console=console)
 
         # Execute
-        result = await agent.process_events("SUFRA event")
+        _result = await agent.process_events("SUFRA event")
 
         # Verify tool result was logged
         console_output = output.getvalue()

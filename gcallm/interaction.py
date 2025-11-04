@@ -6,7 +6,7 @@ from rich.prompt import Confirm
 from rich.panel import Panel
 from rich.markdown import Markdown
 
-from gcallm.conflicts import ConflictReport, extract_proposed_events, extract_conflicts
+from gcallm.conflicts import ConflictReport
 
 
 def display_conflict_report(report: ConflictReport, console: Console) -> None:
