@@ -14,20 +14,39 @@ Coffee with Sarah
 
 ### Prerequisites
 
-1. **Python 3.10+** and **uv** ([installation guide](https://docs.astral.sh/uv/))
+1. **Python 3.10+**
 2. **Node.js 16+** (for the Google Calendar MCP server)
 3. **Google Cloud OAuth credentials** (see [Setup](#setup) below)
 
-### Install gcallm
+### Option 1: Install from PyPI (Recommended)
 
+```bash
+pip install gcallm
+```
+
+### Option 2: Install from Source
+
+**For regular use:**
 ```bash
 # Clone the repository
 git clone https://github.com/WarrenZhu050413/gcallm.git
 cd gcallm
 
-# Install with uv
-uv tool install --editable .
+# Install with make (requires uv)
+make install
 ```
+
+**For development:**
+```bash
+# Clone the repository
+git clone https://github.com/WarrenZhu050413/gcallm.git
+cd gcallm
+
+# Install in editable mode
+make dev
+```
+
+> **Note**: `uv` is a fast Python package installer. Install it with: `pip install uv` or see [uv docs](https://docs.astral.sh/uv/)
 
 ## Setup
 
@@ -208,6 +227,33 @@ To revert to the default: `gcallm prompt --reset`
 
 ## Development
 
+### Setup Development Environment
+
+```bash
+# Clone the repository
+git clone https://github.com/WarrenZhu050413/gcallm.git
+cd gcallm
+
+# Install in development mode (editable)
+make dev
+
+# Verify installation
+gcallm verify
+```
+
+### Available Commands
+
+```bash
+make dev       # Install in development mode (editable)
+make install   # Install in production mode (non-editable)
+make test      # Run tests
+make format    # Format code with black
+make lint      # Lint code with ruff
+make build     # Build package for PyPI
+make clean     # Remove build artifacts
+make uninstall # Uninstall gcallm
+```
+
 ### Running Tests
 
 ```bash
@@ -234,6 +280,16 @@ This project follows TDD (Test-Driven Development). All features have tests:
 ```bash
 make format   # Format with black
 make lint     # Lint with ruff
+```
+
+### Building for PyPI
+
+```bash
+# Build distribution packages
+make build
+
+# Publish to PyPI (requires PyPI credentials)
+make publish
 ```
 
 ## Troubleshooting
