@@ -1,7 +1,6 @@
 """Claude Agent with Google Calendar MCP access."""
 
 import asyncio
-import json
 import os
 from typing import Optional
 
@@ -11,7 +10,6 @@ from claude_agent_sdk import (
     AssistantMessage,
     TextBlock,
     ToolUseBlock,
-    ToolResultBlock,
 )
 from claude_agent_sdk.types import McpStdioServerConfig
 from rich.console import Console
@@ -163,34 +161,32 @@ class CalendarAgent:
         """
         self.console = console or Console()
         self.model = model
+        self.captured_tool_results: list[dict] = []
 
-    def _log_tool_result(self, block: ToolResultBlock) -> None:
-        """Log MCP tool result to console and capture calendar events.
+    async def _post_tool_use_hook(self, hook_input: dict, session_id: str | None, context: dict) -> dict:
+        """Hook to capture MCP tool results after tool execution.
+
+        NOTE: This hook is configured but does NOT fire in production with current SDK.
+        See TECHNICAL_NOTES.md for details on MCP tool result capture limitation.
 
         Args:
-            block: Tool result block containing the MCP response
+            hook_input: Hook input containing tool_name, tool_input, tool_response
+            session_id: Optional session ID
+            context: Hook context
+
+        Returns:
+            Hook output dict
         """
-        if not block.content:
-            return
+        tool_name = hook_input.get("tool_name", "")
+        tool_response = hook_input.get("tool_response")
 
-        try:
-            # Format the result nicely
-            if isinstance(block.content, list):
-                for item in block.content:
-                    if isinstance(item, dict):
-                        # Capture calendar event results
-                        if "event_id" in item and "summary" in item:
-                            self.captured_tool_results.append(item)
+        # Only capture Google Calendar create-event results
+        if tool_name == "mcp__google-calendar__create-event" and tool_response:
+            # tool_response should be the event dict from MCP
+            if isinstance(tool_response, dict) and "event_id" in tool_response and "summary" in tool_response:
+                self.captured_tool_results.append(tool_response)
 
-                        result_json = json.dumps(item, indent=2)
-                        self.console.print(f"[dim]Tool result:[/dim]\n{result_json}")
-                    else:
-                        self.console.print(f"[dim]Tool result:[/dim] {item}")
-            else:
-                self.console.print(f"[dim]Tool result:[/dim] {block.content}")
-        except Exception:
-            # Fallback if JSON formatting fails
-            self.console.print(f"[dim]Tool result:[/dim] {block.content}")
+        return {}
 
     async def process_events(
         self,
@@ -235,6 +231,17 @@ class CalendarAgent:
             # Grant access to Desktop for reading screenshots
             add_dirs.append(os.path.expanduser("~/Desktop"))
 
+        # Configure PostToolUse hook to capture MCP tool results
+        from claude_agent_sdk.types import HookMatcher
+        hooks = {
+            "PostToolUse": [
+                HookMatcher(
+                    matcher=None,  # Match ALL tools to see if hook gets called
+                    hooks=[self._post_tool_use_hook],
+                )
+            ]
+        }
+
         options = ClaudeAgentOptions(
             model=self.model,
             system_prompt=system_prompt,
@@ -242,6 +249,7 @@ class CalendarAgent:
             max_turns=10,
             mcp_servers={"google-calendar": google_calendar_mcp},
             add_dirs=add_dirs,  # Grant Desktop access when screenshots provided
+            hooks=hooks,  # Enable PostToolUse hook
         )
 
         # Build prompt with screenshots
@@ -273,9 +281,6 @@ class CalendarAgent:
                         elif isinstance(block, ToolUseBlock):
                             # Show tool usage (for transparency)
                             self.console.print(f"[dim]Using tool: {block.name}[/dim]")
-                        elif isinstance(block, ToolResultBlock):
-                            # Log the full tool result
-                            self._log_tool_result(block)
 
         return {
             "text": "".join(response_text),
@@ -354,6 +359,17 @@ class CalendarAgent:
         if screenshot_paths:
             add_dirs.append(os.path.expanduser("~/Desktop"))
 
+        # Configure PostToolUse hook for interactive mode too
+        from claude_agent_sdk.types import HookMatcher
+        hooks = {
+            "PostToolUse": [
+                HookMatcher(
+                    matcher=None,  # Match ALL tools
+                    hooks=[self._post_tool_use_hook],
+                )
+            ]
+        }
+
         options = ClaudeAgentOptions(
             model=self.model,
             system_prompt=INTERACTIVE_SYSTEM_PROMPT,
@@ -361,6 +377,7 @@ class CalendarAgent:
             max_turns=10,
             mcp_servers={"google-calendar": google_calendar_mcp},
             add_dirs=add_dirs,
+            hooks=hooks,  # Enable PostToolUse hook
         )
 
         response_text = []
@@ -377,8 +394,6 @@ class CalendarAgent:
                             response_text.append(block.text)
                         elif isinstance(block, ToolUseBlock):
                             self.console.print(f"[dim]Using tool: {block.name}[/dim]")
-                        elif isinstance(block, ToolResultBlock):
-                            self._log_tool_result(block)
 
         return "".join(response_text)
 

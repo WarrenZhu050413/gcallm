@@ -69,10 +69,9 @@ class TestCalendarAgent:
 
     @pytest.mark.asyncio
     @patch("gcallm.agent.ClaudeSDKClient")
-    async def test_process_events_logs_tool_results(self, mock_client_class):
-        """Test that MCP tool results are captured and logged."""
+    async def test_process_events_shows_tool_usage(self, mock_client_class):
+        """Test that MCP tool usage is displayed to console."""
         from gcallm.agent import AssistantMessage, TextBlock, ToolUseBlock
-        from claude_agent_sdk import ToolResultBlock
         from io import StringIO
 
         # Setup mock client
@@ -82,51 +81,25 @@ class TestCalendarAgent:
         mock_tool_use = Mock()
         mock_tool_use.__class__ = ToolUseBlock
         mock_tool_use.name = "mcp__google-calendar__create-event"
-        mock_tool_use.input = {
-            "summary": "SUFRA - Arab Heritage Night",
-            "start_time": "2025-11-08T20:30:00",
-            "end_time": "2025-11-08T23:00:00",
-            "location": "Lowell Dining Hall",
-        }
-
-        # Create mock tool result block (MCP tool response)
-        mock_tool_result = Mock()
-        mock_tool_result.__class__ = ToolResultBlock
-        mock_tool_result.content = [
-            {
-                "event_id": "706i26dn9im",
-                "summary": "SUFRA - Arab Heritage Night",
-                "start": "2025-11-08T20:30:00-05:00",
-                "end": "2025-11-08T23:00:00-05:00",
-                "location": "Lowell Dining Hall",
-                "htmlLink": "https://www.google.com/calendar/event?eid=NzA2aTI2ZG45aW1qbnBjYm1wa2FyYzhpdnMgd3podUBjb2xsZWdlLmhhcnZhcmQuZWR1",
-            }
-        ]
-        mock_tool_result.is_error = False
 
         # Create mock text block
         mock_text_block = Mock()
         mock_text_block.__class__ = TextBlock
         mock_text_block.text = "Event created successfully"
 
-        # Create message sequence
+        # Create message sequence (ToolResultBlock NOT in stream - SDK limitation)
         mock_msg1 = Mock()
         mock_msg1.__class__ = AssistantMessage
         mock_msg1.content = [mock_tool_use]
 
         mock_msg2 = Mock()
         mock_msg2.__class__ = AssistantMessage
-        mock_msg2.content = [mock_tool_result]
-
-        mock_msg3 = Mock()
-        mock_msg3.__class__ = AssistantMessage
-        mock_msg3.content = [mock_text_block]
+        mock_msg2.content = [mock_text_block]
 
         # Create an async generator that yields the messages
         async def mock_receive():
             yield mock_msg1
             yield mock_msg2
-            yield mock_msg3
 
         mock_client.receive_response = mock_receive
         mock_client.query = AsyncMock()
@@ -141,101 +114,51 @@ class TestCalendarAgent:
         agent = CalendarAgent(console=console)
 
         # Execute
-        _result = await agent.process_events("SUFRA event")
+        result = await agent.process_events("SUFRA event")
 
-        # Verify tool result was logged
+        # Verify tool usage is shown
         console_output = output.getvalue()
-        assert "mcp__google-calendar__create-event" in console_output
-        # Should log the full event details from the tool result
-        assert (
-            "SUFRA - Arab Heritage Night" in console_output
-            or "706i26dn9im" in console_output
-        )
+        assert "Using tool: mcp__google-calendar__create-event" in console_output
+
+        # Verify result structure
+        assert isinstance(result, dict)
+        assert "text" in result
+        assert "Event created successfully" in result["text"]
 
     @pytest.mark.asyncio
-    @patch("gcallm.agent.ClaudeSDKClient")
-    async def test_agent_captures_and_returns_tool_results(self, mock_client_class):
-        """Test that agent captures MCP tool results and returns them alongside text."""
-        from gcallm.agent import AssistantMessage, TextBlock, ToolUseBlock
-        from claude_agent_sdk import ToolResultBlock
+    async def test_agent_hook_captures_tool_results_when_called(self):
+        """Test that PostToolUse hook logic captures event data correctly.
 
-        # Setup mock client
-        mock_client = AsyncMock()
+        NOTE: In production, this hook does NOT fire (SDK limitation).
+        This test verifies the hook WOULD work correctly if it were called.
+        """
+        agent = CalendarAgent()
 
-        # Create mock tool use block
-        mock_tool_use = Mock()
-        mock_tool_use.__class__ = ToolUseBlock
-        mock_tool_use.name = "mcp__google-calendar__create-event"
-
-        # Create mock tool result block with event data
-        mock_tool_result = Mock()
-        mock_tool_result.__class__ = ToolResultBlock
-        mock_tool_result.content = [
-            {
+        # Simulate hook being called with MCP tool response
+        hook_input = {
+            "tool_name": "mcp__google-calendar__create-event",
+            "tool_response": {
                 "event_id": "abc123xyz",
                 "summary": "Team Standup",
                 "start": "2025-11-05T09:00:00-05:00",
                 "end": "2025-11-05T09:30:00-05:00",
                 "location": "Conference Room A",
                 "htmlLink": "https://www.google.com/calendar/event?eid=abc123xyz",
-            }
-        ]
-        mock_tool_result.is_error = False
+            },
+        }
 
-        # Create mock text block
-        mock_text_block = Mock()
-        mock_text_block.__class__ = TextBlock
-        mock_text_block.text = "Event created successfully"
+        # Call hook directly
+        await agent._post_tool_use_hook(hook_input, None, {})
 
-        # Create message sequence
-        mock_msg1 = Mock()
-        mock_msg1.__class__ = AssistantMessage
-        mock_msg1.content = [mock_tool_use]
-
-        mock_msg2 = Mock()
-        mock_msg2.__class__ = AssistantMessage
-        mock_msg2.content = [mock_tool_result]
-
-        mock_msg3 = Mock()
-        mock_msg3.__class__ = AssistantMessage
-        mock_msg3.content = [mock_text_block]
-
-        # Create async generator
-        async def mock_receive():
-            yield mock_msg1
-            yield mock_msg2
-            yield mock_msg3
-
-        mock_client.receive_response = mock_receive
-        mock_client.query = AsyncMock()
-        mock_client_class.return_value.__aenter__.return_value = mock_client
-
-        agent = CalendarAgent()
-
-        # Execute
-        result = await agent.process_events("Team standup tomorrow at 9am")
-
-        # Verify that result contains both text and tool results
-        assert isinstance(
-            result, dict
-        ), "Result should be a dict with 'text' and 'tool_results'"
-        assert "text" in result, "Result should have 'text' key"
-        assert "tool_results" in result, "Result should have 'tool_results' key"
-
-        # Check text response
-        assert "Event created successfully" in result["text"]
-
-        # Check captured tool results
-        assert len(result["tool_results"]) == 1
-        event = result["tool_results"][0]
+        # Verify event was captured
+        assert len(agent.captured_tool_results) == 1
+        event = agent.captured_tool_results[0]
         assert event["event_id"] == "abc123xyz"
         assert event["summary"] == "Team Standup"
         assert event["start"] == "2025-11-05T09:00:00-05:00"
         assert event["end"] == "2025-11-05T09:30:00-05:00"
         assert event["location"] == "Conference Room A"
-        assert (
-            event["htmlLink"] == "https://www.google.com/calendar/event?eid=abc123xyz"
-        )
+        assert event["htmlLink"] == "https://www.google.com/calendar/event?eid=abc123xyz"
 
 
 class TestCreateEvents:
