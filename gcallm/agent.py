@@ -1,6 +1,7 @@
 """Claude Agent with Google Calendar MCP access."""
 
 import asyncio
+import json
 import os
 from typing import Optional
 
@@ -10,6 +11,7 @@ from claude_agent_sdk import (
     AssistantMessage,
     TextBlock,
     ToolUseBlock,
+    ToolResultBlock,
 )
 from claude_agent_sdk.types import McpStdioServerConfig
 from rich.console import Console
@@ -68,6 +70,30 @@ class CalendarAgent:
         self.console = console or Console()
         self.model = model
 
+    def _log_tool_result(self, block: ToolResultBlock) -> None:
+        """Log MCP tool result to console.
+
+        Args:
+            block: Tool result block containing the MCP response
+        """
+        if not block.content:
+            return
+
+        try:
+            # Format the result nicely
+            if isinstance(block.content, list):
+                for item in block.content:
+                    if isinstance(item, dict):
+                        result_json = json.dumps(item, indent=2)
+                        self.console.print(f"[dim]Tool result:[/dim]\n{result_json}")
+                    else:
+                        self.console.print(f"[dim]Tool result:[/dim] {item}")
+            else:
+                self.console.print(f"[dim]Tool result:[/dim] {block.content}")
+        except Exception:
+            # Fallback if JSON formatting fails
+            self.console.print(f"[dim]Tool result:[/dim] {block.content}")
+
     async def process_events(self, user_input: str) -> str:
         """Process event description and create events using GCal MCP.
 
@@ -119,6 +145,9 @@ Please create the event(s) as described."""
                         elif isinstance(block, ToolUseBlock):
                             # Show tool usage (for transparency)
                             self.console.print(f"[dim]Using tool: {block.name}[/dim]")
+                        elif isinstance(block, ToolResultBlock):
+                            # Log the full tool result
+                            self._log_tool_result(block)
 
         return "".join(response_text)
 
