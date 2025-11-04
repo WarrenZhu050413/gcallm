@@ -132,6 +132,11 @@ gcallm "Coffee with Sarah tomorrow at 2pm at Blue Bottle"
 # From URL (automatically fetched)
 gcallm "https://www.aiandsoul.org/..."
 
+# From screenshot (most powerful!)
+gcallm --screenshot        # Latest screenshot from Desktop
+gcallm -s                  # Short form
+gcallm --screenshots 3     # Latest 3 screenshots
+
 # From clipboard
 gcallm --clipboard
 gcallm -c
@@ -145,6 +150,36 @@ echo "Meeting tomorrow at 3pm" | gcallm
 gcallm
 # Opens $EDITOR, you write events, save & quit
 ```
+
+### Screenshot-Based Event Creation
+
+**One of gcallm's most powerful features** is creating events directly from screenshots of flyers, emails, meeting invites, or any image containing event information.
+
+```bash
+# Basic usage
+gcallm add --screenshot           # Use most recent screenshot
+gcallm add -s                     # Short form
+
+# Multiple screenshots
+gcallm add --screenshots 3        # Use latest 3 screenshots
+
+# Screenshot + additional context
+gcallm add -s "CS50 team meeting"
+```
+
+**How it works:**
+1. Take a screenshot (⌘+Shift+4 on macOS) of event information
+2. Run `gcallm add --screenshot`
+3. Claude analyzes the screenshot and extracts event details
+4. Event is automatically created in your calendar
+
+**No setup required** - Desktop access is configured automatically.
+
+**Examples:**
+- **Event flyer** → Claude extracts date, time, location, description
+- **Email invitation** → Claude creates calendar event with all details
+- **Meeting notes** → Claude schedules follow-up meetings
+- **Existing calendar** → Claude replicates events to your calendar
 
 ### Commands
 
