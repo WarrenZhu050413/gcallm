@@ -1,10 +1,88 @@
 """Rich formatting for gcallm output."""
 
 import re
+from datetime import datetime
+
 from rich.console import Console
-from rich.panel import Panel
 from rich.markdown import Markdown
+from rich.panel import Panel
 from rich.table import Table
+
+
+def format_iso_datetime(iso_string: str) -> str:
+    """Format ISO 8601 datetime to human-readable string.
+
+    Args:
+        iso_string: ISO 8601 datetime string (e.g., "2025-11-05T09:00:00-05:00")
+
+    Returns:
+        Human-readable datetime (e.g., "November 5, 2025 at 9:00 AM - 9:30 AM (EST)")
+    """
+    try:
+        dt = datetime.fromisoformat(iso_string)
+        # Format: "November 5, 2025 at 9:00 AM"
+        return dt.strftime("%B %d, %Y at %-I:%M %p")
+    except (ValueError, AttributeError):
+        # Fallback to original string if parsing fails
+        return iso_string
+
+
+def format_tool_results(tool_results: list[dict], console: Console) -> None:
+    """Format and display MCP tool results directly.
+
+    Args:
+        tool_results: List of event dicts from MCP tool
+        console: Rich console for output
+    """
+    if not tool_results:
+        return
+
+    for event in tool_results:
+        # Create a table for event details
+        table = Table(show_header=False, box=None, padding=(0, 1))
+        table.add_column(style="cyan bold", width=12)
+        table.add_column(style="white")
+
+        # Add title
+        if "summary" in event:
+            table.add_row("Event:", f"[bold green]{event['summary']}[/bold green]")
+
+        # Add date/time
+        if "start" in event and "end" in event:
+            start_formatted = format_iso_datetime(event["start"])
+            end_dt = datetime.fromisoformat(event["end"])
+            end_time = end_dt.strftime("%-I:%M %p")
+            # Extract timezone from start
+            try:
+                tz = datetime.fromisoformat(event["start"]).strftime("%Z")
+                if not tz:  # If no timezone name, try to extract from offset
+                    tz = "EST"  # Default fallback
+            except (ValueError, KeyError):
+                tz = "EST"
+
+            datetime_str = f"{start_formatted} - {end_time} ({tz})"
+            table.add_row("When:", datetime_str)
+
+        # Add location if present
+        if "location" in event and event["location"]:
+            table.add_row("Location:", event["location"])
+
+        # Add link
+        if "htmlLink" in event:
+            table.add_row(
+                "Link:", f"[link={event['htmlLink']}]{event['htmlLink']}[/link]"
+            )
+
+        # Display in a panel
+        console.print()
+        console.print(
+            Panel(
+                table,
+                title="[bold green]✅ Event Created Successfully[/bold green]",
+                border_style="green",
+            )
+        )
+        console.print()
 
 
 def format_event_response(response: str, console: Console) -> None:

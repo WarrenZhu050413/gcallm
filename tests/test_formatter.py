@@ -4,7 +4,7 @@ import pytest
 from io import StringIO
 from rich.console import Console
 
-from gcallm.formatter import format_event_response
+from gcallm.formatter import format_event_response, format_tool_results
 
 
 class TestFormatter:
@@ -256,4 +256,106 @@ Please specify:
         result = output.getvalue()
 
         # May be empty or have fallback content
+        assert isinstance(result, str)
+
+
+class TestToolResultFormatter:
+    """Test suite for direct tool result formatting."""
+
+    def test_format_single_tool_result(self):
+        """Test formatting a single MCP tool result."""
+        tool_results = [
+            {
+                "event_id": "abc123xyz",
+                "summary": "Team Standup",
+                "start": "2025-11-05T09:00:00-05:00",
+                "end": "2025-11-05T09:30:00-05:00",
+                "location": "Conference Room A",
+                "htmlLink": "https://www.google.com/calendar/event?eid=abc123xyz",
+            }
+        ]
+
+        output = StringIO()
+        console = Console(file=output, force_terminal=True, width=120)
+
+        format_tool_results(tool_results, console)
+        result = output.getvalue()
+
+        # Should contain event details
+        assert "Team Standup" in result
+        assert "Conference Room A" in result
+        assert "https://www.google.com/calendar/event?eid=abc123xyz" in result
+        # Should format the datetime nicely (not raw ISO)
+        assert "November" in result and "2025" in result
+        assert "9:00 AM" in result
+        assert "9:30 AM" in result
+
+    def test_format_multiple_tool_results(self):
+        """Test formatting multiple MCP tool results."""
+        tool_results = [
+            {
+                "event_id": "event1",
+                "summary": "Morning Meeting",
+                "start": "2025-11-05T09:00:00-05:00",
+                "end": "2025-11-05T10:00:00-05:00",
+                "htmlLink": "https://www.google.com/calendar/event?eid=event1",
+            },
+            {
+                "event_id": "event2",
+                "summary": "Lunch with Team",
+                "start": "2025-11-05T12:00:00-05:00",
+                "end": "2025-11-05T13:00:00-05:00",
+                "location": "Cafeteria",
+                "htmlLink": "https://www.google.com/calendar/event?eid=event2",
+            },
+        ]
+
+        output = StringIO()
+        console = Console(file=output, force_terminal=True, width=120)
+
+        format_tool_results(tool_results, console)
+        result = output.getvalue()
+
+        # Should contain both events
+        assert "Morning Meeting" in result
+        assert "Lunch with Team" in result
+        assert "Cafeteria" in result
+        assert "event1" in result
+        assert "event2" in result
+
+    def test_format_tool_result_without_location(self):
+        """Test formatting tool result when location is missing."""
+        tool_results = [
+            {
+                "event_id": "xyz789",
+                "summary": "Virtual Call",
+                "start": "2025-11-06T14:00:00-05:00",
+                "end": "2025-11-06T15:00:00-05:00",
+                "htmlLink": "https://www.google.com/calendar/event?eid=xyz789",
+            }
+        ]
+
+        output = StringIO()
+        console = Console(file=output, force_terminal=True, width=120)
+
+        format_tool_results(tool_results, console)
+        result = output.getvalue()
+
+        # Should still format correctly without location
+        assert "Virtual Call" in result
+        assert "xyz789" in result
+        # Should not crash or show "None" for location
+
+    def test_format_empty_tool_results(self):
+        """Test formatting when tool_results list is empty."""
+        tool_results = []
+
+        output = StringIO()
+        console = Console(file=output, force_terminal=True, width=120)
+
+        # Should not crash
+        format_tool_results(tool_results, console)
+        result = output.getvalue()
+
+        # Should be empty or minimal output
         assert isinstance(result, str)
