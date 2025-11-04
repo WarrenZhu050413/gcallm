@@ -31,7 +31,7 @@ Coffee with Sarah
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/gcallm.git
+git clone https://github.com/WarrenZhu050413/gcallm.git
 cd gcallm
 
 # Install with uv
@@ -243,4 +243,4 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## Author
 
-Created by Warren Zhu ([@YOUR_GITHUB](https://github.com/YOUR_GITHUB))
+Created by Warren Zhu ([@WarrenZhu050413](https://github.com/WarrenZhu050413))
