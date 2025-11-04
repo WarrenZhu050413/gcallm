@@ -44,11 +44,32 @@ def save_config(config: dict):
 def get_oauth_credentials_path() -> Optional[str]:
     """Get the configured OAuth credentials path.
 
+    Falls back to default locations if not explicitly configured:
+    1. ~/.gmail-mcp/gcp-oauth.keys.json (common location for gmail-mcp)
+    2. ~/.config/gcallm/gcp-oauth.keys.json
+    3. ~/gcp-oauth.keys.json
+
     Returns:
-        Path to OAuth credentials file, or None if not configured
+        Path to OAuth credentials file, or None if not found
     """
     config = load_config()
-    return config.get("oauth_credentials_path")
+    configured_path = config.get("oauth_credentials_path")
+
+    if configured_path:
+        return configured_path
+
+    # Try default locations
+    default_locations = [
+        Path.home() / ".gmail-mcp" / "gcp-oauth.keys.json",
+        Path.home() / ".config" / "gcallm" / "gcp-oauth.keys.json",
+        Path.home() / "gcp-oauth.keys.json",
+    ]
+
+    for path in default_locations:
+        if path.exists() and path.is_file():
+            return str(path)
+
+    return None
 
 
 def set_oauth_credentials_path(path: str):

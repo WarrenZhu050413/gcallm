@@ -147,7 +147,22 @@ gcallm --help      # Show help
 
 ### OAuth Credentials
 
-After running `gcallm setup`, your OAuth credentials path is saved to `~/.config/gcallm/config.json`. This means you never have to set `GOOGLE_OAUTH_CREDENTIALS` environment variable manually!
+`gcallm` automatically looks for OAuth credentials in these locations (in order):
+
+1. **Configured path** (via `gcallm setup`)
+2. **Default locations** (if no config):
+   - `~/.gmail-mcp/gcp-oauth.keys.json` (shared with gmail-mcp)
+   - `~/.config/gcallm/gcp-oauth.keys.json`
+   - `~/gcp-oauth.keys.json`
+
+**No configuration needed** if your OAuth file is in one of these default locations! Just download your credentials from Google Cloud Console and save them to `~/.gmail-mcp/gcp-oauth.keys.json`.
+
+To use a custom location:
+```bash
+gcallm setup /path/to/your/gcp-oauth.keys.json
+```
+
+This saves the path to `~/.config/gcallm/config.json` so you never have to set `GOOGLE_OAUTH_CREDENTIALS` manually!
 
 ### Custom System Prompt
 
