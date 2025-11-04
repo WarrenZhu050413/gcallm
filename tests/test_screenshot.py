@@ -82,6 +82,71 @@ class TestScreenshotDiscovery:
         with pytest.raises(FileNotFoundError):
             find_recent_screenshots(count=1, directory="/nonexistent/directory")
 
+    def test_spanish_screenshot_pattern(self):
+        """Test finding Spanish macOS screenshots (Captura de pantalla)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create Spanish screenshot
+            screenshot = (
+                Path(tmpdir) / "Captura de pantalla 2025-11-04 a la(s) 3.27.08 p.m..png"
+            )
+            screenshot.touch()
+
+            result = find_recent_screenshots(count=1, directory=tmpdir)
+
+            assert len(result) == 1
+            assert "Captura de pantalla" in result[0]
+
+    def test_french_screenshot_pattern(self):
+        """Test finding French macOS screenshots (Capture d'écran)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            screenshot = Path(tmpdir) / "Capture d'écran 2025-11-04 à 15.27.08.png"
+            screenshot.touch()
+
+            result = find_recent_screenshots(count=1, directory=tmpdir)
+
+            assert len(result) == 1
+            assert "Capture d'écran" in result[0]
+
+    def test_german_screenshot_pattern(self):
+        """Test finding German macOS screenshots (Bildschirmfoto)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            screenshot = Path(tmpdir) / "Bildschirmfoto 2025-11-04 um 15.27.08.png"
+            screenshot.touch()
+
+            result = find_recent_screenshots(count=1, directory=tmpdir)
+
+            assert len(result) == 1
+            assert "Bildschirmfoto" in result[0]
+
+    def test_mixed_locale_screenshots(self):
+        """Test finding screenshots from multiple locales in same directory."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            import time
+
+            # Create English screenshot (oldest)
+            english = Path(tmpdir) / "Screenshot 2025-11-04 at 10.00.00.png"
+            english.touch()
+            time.sleep(0.01)
+
+            # Create Spanish screenshot (middle)
+            spanish = (
+                Path(tmpdir) / "Captura de pantalla 2025-11-04 a la(s) 11.00.00.png"
+            )
+            spanish.touch()
+            time.sleep(0.01)
+
+            # Create French screenshot (newest)
+            french = Path(tmpdir) / "Capture d'écran 2025-11-04 à 12.00.00.png"
+            french.touch()
+
+            result = find_recent_screenshots(count=3, directory=tmpdir)
+
+            # Should return all 3, sorted by mtime (newest first)
+            assert len(result) == 3
+            assert "Capture d'écran" in result[0]  # French (newest)
+            assert "Captura de pantalla" in result[1]  # Spanish
+            assert "Screenshot" in result[2]  # English (oldest)
+
 
 class TestCLIIntegration:
     """Tests for CLI screenshot flags."""

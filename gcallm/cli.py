@@ -45,6 +45,7 @@ def default_command():
     # Otherwise, treat as event description
     event_description = " ".join(args) if args else None
     clipboard = "--clipboard" in args or "-c" in args
+    interactive = "--interactive" in args or "-i" in args
 
     # Filter out flags from event description
     if event_description:
@@ -71,7 +72,9 @@ def default_command():
             raise typer.Exit(code=1)
 
         # Create events using Claude agent
-        result = create_events(user_input=user_input, console=console)
+        result = create_events(
+            user_input=user_input, console=console, interactive=interactive
+        )
 
         # Display result with Rich formatting
         format_event_response(result, console)
@@ -104,6 +107,12 @@ def add_command(
     screenshots: Optional[int] = typer.Option(
         None, "--screenshots", help="Use latest N screenshots from Desktop"
     ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        "-i",
+        help="Check for conflicts and ask before creating events",
+    ),
     calendar: str = typer.Option(
         "primary", "--calendar", help="Target calendar (default: primary)"
     ),
@@ -120,6 +129,8 @@ def add_command(
       [dim]$[/dim] gcallm --screenshot    # Use latest screenshot
       [dim]$[/dim] gcallm -s              # Short form
       [dim]$[/dim] gcallm --screenshots 3 # Use latest 3 screenshots
+      [dim]$[/dim] gcallm --interactive   # Check for conflicts first
+      [dim]$[/dim] gcallm -i "Meeting tomorrow" # Interactive mode
       [dim]$[/dim] pbpaste | gcallm
       [dim]$[/dim] cat events.txt | gcallm
       [dim]$[/dim] gcallm  # Opens editor
@@ -140,9 +151,30 @@ def add_command(
 
                 screenshot_paths = find_recent_screenshots(count=screenshot_count)
             except ValueError as e:
-                console.print(f"[red]Error:[/red] {e}")
-                console.print("[dim]Take a screenshot (⌘+Shift+4) and try again.[/dim]")
-                raise typer.Exit(code=1)
+                error_msg = str(e)
+                # Check if this is a pattern matching failure
+                if "CLAUDE_FALLBACK_INSTRUCTION" in error_msg:
+                    # Extract user-facing message (before the fallback instruction)
+                    user_msg = error_msg.split("CLAUDE_FALLBACK_INSTRUCTION")[0].strip()
+                    console.print(f"[yellow]⚠️  Warning:[/yellow] {user_msg}")
+                    console.print()
+                    console.print(
+                        "[yellow]Pattern matching failed - screenshot localization issue detected.[/yellow]"
+                    )
+                    console.print(
+                        "[dim]Claude will attempt to manually find your screenshots...[/dim]"
+                    )
+                    console.print()
+                    # Pass the full error (including fallback instruction) to Claude via event_description
+                    # Update user_input to include the error for Claude to handle
+                    if not event_description:
+                        event_description = f"Screenshot pattern error: {error_msg}"
+                else:
+                    console.print(f"[red]Error:[/red] {error_msg}")
+                    console.print(
+                        "[dim]Take a screenshot (⌘+Shift+4) and try again.[/dim]"
+                    )
+                    raise typer.Exit(code=1)
             except FileNotFoundError as e:
                 console.print(f"[red]Error:[/red] {e}")
                 raise typer.Exit(code=1)
@@ -168,7 +200,10 @@ def add_command(
 
         # Create events using Claude agent
         result = create_events(
-            user_input=user_input, screenshot_paths=screenshot_paths, console=console
+            user_input=user_input,
+            screenshot_paths=screenshot_paths,
+            console=console,
+            interactive=interactive,
         )
 
         # Display result

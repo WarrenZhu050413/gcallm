@@ -181,6 +181,62 @@ gcallm add -s "CS50 team meeting"
 - **Meeting notes** → Claude schedules follow-up meetings
 - **Existing calendar** → Claude replicates events to your calendar
 
+### Interactive Mode: Conflict Detection
+
+Want `gcallm` to check for scheduling conflicts before creating events? Use interactive mode!
+
+```bash
+# Interactive mode - checks for conflicts first
+gcallm --interactive "Team meeting tomorrow at 2pm"
+gcallm -i "Coffee with Sarah Friday at 10am"
+
+# Works with all input methods
+gcallm add -i --screenshot
+gcallm -i --clipboard
+pbpaste | gcallm -i
+```
+
+**How it works:**
+
+1. **Phase 1 - Analysis**: Claude analyzes the event and checks your calendar for conflicts
+2. **Conflict Detection**: Distinguishes between important and minor conflicts:
+   - **Important conflicts**: 2+ overlapping events, all-day events, significant overlap (>50%)
+   - **Minor conflicts**: Single event with minor overlap (<50%), tentative events
+3. **User Decision**: You decide whether to proceed if important conflicts are found
+4. **Phase 2 - Creation**: Event is created based on your decision
+
+**Example interactive flow:**
+
+```bash
+$ gcallm -i "Workshop tomorrow 2-5pm"
+
+⚠️ Scheduling Conflicts Detected
+
+Proposed event:
+- Workshop
+- Date & Time: Tomorrow at 2:00 PM - 5:00 PM
+
+Conflicts detected:
+- Meeting A (2:00 PM - 3:00 PM)
+- Meeting B (3:00 PM - 4:00 PM)
+- Meeting C (4:00 PM - 5:00 PM)
+
+Do you want to create this event anyway? [y/N]: n
+
+Event creation cancelled.
+```
+
+**When to use interactive mode:**
+- Busy schedule with many meetings
+- Important events that shouldn't conflict
+- Want to review before committing
+- Checking availability for proposed times
+
+**When to skip it:**
+- Quick, informal events
+- You know your schedule is clear
+- Lower-stakes calendar entries
+
 ### Commands
 
 ```bash
@@ -305,11 +361,13 @@ pytest tests/ --cov=gcallm --cov-report=term-missing
 ### Test-Driven Development
 
 This project follows TDD (Test-Driven Development). All features have tests:
-- **38 tests total** - 100% passing
+- **76 tests total** - 100% passing
 - **CLI tests** - Command routing, input handling, Rich formatting
 - **Agent tests** - Claude SDK integration, config loading
 - **Formatter tests** - Rich output formatting, event parsing
 - **Input tests** - Stdin, clipboard, editor modes
+- **Screenshot tests** - Screenshot discovery, CLI integration, agent integration
+- **Interactive tests** - Conflict detection, user interaction, two-phase workflow
 
 ### Code Quality
 
