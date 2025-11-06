@@ -1,6 +1,7 @@
 """Conflict detection and parsing for interactive mode."""
 
 import re
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 
 
@@ -17,8 +18,76 @@ class ConflictReport:
     def from_response(cls, response: str) -> "ConflictReport":
         """Parse conflict information from Claude's Phase 1 response.
 
+        Supports both XML format and legacy text format.
+
         Args:
             response: Claude's response text from Phase 1
+
+        Returns:
+            ConflictReport with parsed information
+        """
+        # Try XML parsing first
+        if "<conflict_analysis>" in response:
+            return cls._from_xml(response)
+
+        # Fall back to legacy text parsing
+        return cls._from_text(response)
+
+    @classmethod
+    def _from_xml(cls, response: str) -> "ConflictReport":
+        """Parse XML-formatted conflict report.
+
+        Args:
+            response: XML response string
+
+        Returns:
+            ConflictReport with parsed information
+        """
+        try:
+            root = ET.fromstring(response.strip())
+
+            # Extract status
+            status_elem = root.find("status")
+            status = status_elem.text if status_elem is not None else "unknown"
+
+            # Extract user_decision_required
+            decision_elem = root.find("user_decision_required")
+            needs_user_decision = (
+                decision_elem is not None and decision_elem.text == "true"
+            )
+
+            # Determine conflict type
+            if status == "important_conflicts":
+                return cls(
+                    has_conflicts=True,
+                    is_important=True,
+                    needs_user_decision=needs_user_decision,
+                    phase1_response=response,
+                )
+            elif status == "minor_conflicts":
+                return cls(
+                    has_conflicts=True,
+                    is_important=False,
+                    needs_user_decision=needs_user_decision,
+                    phase1_response=response,
+                )
+            else:  # no_conflicts
+                return cls(
+                    has_conflicts=False,
+                    is_important=False,
+                    needs_user_decision=False,
+                    phase1_response=response,
+                )
+        except ET.ParseError:
+            # Fall back to text parsing if XML is malformed
+            return cls._from_text(response)
+
+    @classmethod
+    def _from_text(cls, response: str) -> "ConflictReport":
+        """Parse text-formatted conflict report (legacy).
+
+        Args:
+            response: Text response string
 
         Returns:
             ConflictReport with parsed information
@@ -26,11 +95,12 @@ class ConflictReport:
         # Check for the special marker indicating we need user input
         needs_user_decision = "<<AWAIT_USER_DECISION>>" in response
 
-        # Check for conflict indicators
+        # Check for conflict indicators (flexible matching)
         has_important_conflicts = (
-            "IMPORTANT CONFLICTS DETECTED" in response or needs_user_decision
+            "IMPORTANT CONFLICT" in response  # Matches both singular and plural
+            or needs_user_decision
         )
-        has_minor_conflicts = "MINOR CONFLICTS" in response
+        has_minor_conflicts = "MINOR CONFLICT" in response  # Matches both forms
 
         # Determine if we need to stop and ask user
         if has_important_conflicts:

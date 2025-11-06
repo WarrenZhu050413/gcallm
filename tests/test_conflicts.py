@@ -7,6 +7,79 @@ from gcallm.conflicts import (
 )
 
 
+class TestXMLConflictParsing:
+    """Test XML-based conflict report parsing."""
+
+    def test_parse_xml_important_conflict(self):
+        """Test parsing XML response with important conflicts."""
+        response = """<conflict_analysis>
+  <status>important_conflicts</status>
+  <proposed_events>
+    <event>
+      <title>Meeting with Jack</title>
+      <datetime>Friday, November 7, 2025 at 2:00 AM - 3:00 AM (EST)</datetime>
+    </event>
+  </proposed_events>
+  <conflicts>
+    <conflict>
+      <title>Existing Event</title>
+      <time>2:00 AM - 3:00 AM</time>
+    </conflict>
+  </conflicts>
+  <user_decision_required>true</user_decision_required>
+</conflict_analysis>"""
+
+        report = ConflictReport.from_response(response)
+
+        assert report.has_conflicts is True
+        assert report.is_important is True
+        assert report.needs_user_decision is True
+
+    def test_parse_xml_no_conflicts(self):
+        """Test parsing XML response with no conflicts."""
+        response = """<conflict_analysis>
+  <status>no_conflicts</status>
+  <proposed_events>
+    <event>
+      <title>Lunch Meeting</title>
+      <datetime>Monday at 12:00 PM - 1:00 PM</datetime>
+    </event>
+  </proposed_events>
+  <user_decision_required>false</user_decision_required>
+</conflict_analysis>"""
+
+        report = ConflictReport.from_response(response)
+
+        assert report.has_conflicts is False
+        assert report.is_important is False
+        assert report.needs_user_decision is False
+
+    def test_parse_xml_minor_conflicts(self):
+        """Test parsing XML response with minor conflicts."""
+        response = """<conflict_analysis>
+  <status>minor_conflicts</status>
+  <proposed_events>
+    <event>
+      <title>Coffee Chat</title>
+      <datetime>Friday at 10:00 AM - 10:30 AM</datetime>
+    </event>
+  </proposed_events>
+  <conflicts>
+    <conflict>
+      <title>Team Standup</title>
+      <time>10:00 AM - 10:15 AM</time>
+    </conflict>
+  </conflicts>
+  <user_decision_required>false</user_decision_required>
+</conflict_analysis>"""
+
+        report = ConflictReport.from_response(response)
+
+        assert report.has_conflicts is True
+        assert report.is_important is False
+        assert report.needs_user_decision is False
+
+
 class TestConflictReport:
     """Test ConflictReport parsing."""
 
