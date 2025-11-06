@@ -39,7 +39,7 @@ def default_command():
     args = sys.argv[1:]
 
     # Check if it's a known subcommand
-    known_commands = ["verify", "status", "calendars"]
+    known_commands = ["verify", "status", "calendars", "add", "setup", "config", "prompt"]
     if args and args[0] in known_commands:
         return None  # Let Typer handle it
 
