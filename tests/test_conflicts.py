@@ -7,6 +7,74 @@ from gcallm.conflicts import (
 )
 
 
+class TestXMLEnforcement:
+    """Test that only XML format is accepted."""
+
+    def test_reject_text_format_response(self):
+        """Test that text-based format is rejected when strict=True."""
+        text_response = """⚠️ CONFLICT CHECK: IMPORTANT CONFLICTS DETECTED
+
+Proposed event(s):
+- **Team Meeting**
+- **Date & Time:** Tomorrow at 2:00 PM - 3:00 PM
+
+Conflicts detected:
+- **Project Review** (2:00 PM - 2:30 PM)
+
+<<AWAIT_USER_DECISION>>"""
+
+        # Should raise ValueError when text format provided with strict=True
+        import pytest
+        with pytest.raises(ValueError, match="Response must be valid XML"):
+            ConflictReport.from_response(text_response, strict=True)
+
+    def test_accept_xml_format_when_strict(self):
+        """Test that XML format is accepted when strict=True."""
+        xml_response = """<conflict_analysis>
+  <status>important_conflicts</status>
+  <proposed_events>
+    <event>
+      <title>Meeting</title>
+      <datetime>Tomorrow at 2 PM</datetime>
+    </event>
+  </proposed_events>
+  <conflicts>
+    <conflict>
+      <title>Project Review</title>
+      <time>2:00 PM - 2:30 PM</time>
+    </conflict>
+  </conflicts>
+  <user_decision_required>true</user_decision_required>
+</conflict_analysis>"""
+
+        # Should parse successfully
+        report = ConflictReport.from_response(xml_response, strict=True)
+        assert report.has_conflicts is True
+        assert report.is_important is True
+
+    def test_extract_xml_from_mixed_content(self):
+        """Test that XML can be extracted from conversational text."""
+        mixed_response = """I'll analyze this request and check for conflicts.
+
+<conflict_analysis>
+  <status>no_conflicts</status>
+  <proposed_events>
+    <event>
+      <title>Meeting</title>
+      <datetime>Tomorrow at 3 PM</datetime>
+    </event>
+  </proposed_events>
+  <user_decision_required>false</user_decision_required>
+</conflict_analysis>
+
+Ready to proceed with event creation."""
+
+        # Should extract and parse the XML even with extra text
+        report = ConflictReport.from_response(mixed_response, strict=True)
+        assert report.has_conflicts is False
+        assert report.needs_user_decision is False
+
+
 class TestXMLConflictParsing:
     """Test XML-based conflict report parsing."""
 

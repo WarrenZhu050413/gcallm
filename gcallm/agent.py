@@ -350,8 +350,20 @@ class CalendarAgent:
         # Extract text from result (process_events returns dict now)
         phase1_response = phase1_result["text"]
 
-        # Parse the conflict report
-        report = ConflictReport.from_response(phase1_response)
+        # Parse the conflict report with strict XML enforcement
+        try:
+            report = ConflictReport.from_response(phase1_response, strict=True)
+        except ValueError as e:
+            # Claude didn't return XML format - show error and extracted response
+            self.console.print()
+            self.console.print(f"[red]✗ Error: {e}[/red]")
+            self.console.print("[yellow]Claude's response:[/yellow]")
+            self.console.print(phase1_response[:500])  # Show first 500 chars
+            self.console.print()
+            raise ValueError(
+                "Interactive mode requires XML format from Claude. "
+                "Please check system prompt configuration."
+            ) from e
 
         # Display the conflict report to user
         display_conflict_report(report, self.console)

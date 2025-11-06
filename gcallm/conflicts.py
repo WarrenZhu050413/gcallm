@@ -15,20 +15,36 @@ class ConflictReport:
     phase1_response: str
 
     @classmethod
-    def from_response(cls, response: str) -> "ConflictReport":
+    def from_response(cls, response: str, strict: bool = False) -> "ConflictReport":
         """Parse conflict information from Claude's Phase 1 response.
 
         Supports both XML format and legacy text format.
 
         Args:
             response: Claude's response text from Phase 1
+            strict: If True, only accept XML format and raise ValueError for text format
 
         Returns:
             ConflictReport with parsed information
+
+        Raises:
+            ValueError: If strict=True and response is not valid XML format
         """
-        # Try XML parsing first
+        # Try to extract XML from response (may be embedded in text)
         if "<conflict_analysis>" in response:
-            return cls._from_xml(response)
+            # Extract just the XML portion if there's extra text
+            start = response.find("<conflict_analysis>")
+            end = response.find("</conflict_analysis>")
+            if start != -1 and end != -1:
+                xml_content = response[start : end + len("</conflict_analysis>")]
+                return cls._from_xml(xml_content)
+
+        # In strict mode, reject non-XML responses
+        if strict:
+            raise ValueError(
+                "Response must be valid XML format. "
+                "Expected <conflict_analysis> tag but got text format."
+            )
 
         # Fall back to legacy text parsing
         return cls._from_text(response)
