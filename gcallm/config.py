@@ -110,3 +110,27 @@ def clear_custom_system_prompt():
     if "custom_system_prompt" in config:
         del config["custom_system_prompt"]
         save_config(config)
+
+
+def get_model() -> str:
+    """Get the configured Claude model.
+
+    Returns:
+        Model name (haiku, sonnet, opus), defaults to 'haiku'
+    """
+    config = load_config()
+    return config.get("model", "haiku")
+
+
+def set_model(model: str):
+    """Set the Claude model.
+
+    Args:
+        model: Model name (haiku, sonnet, opus)
+    """
+    valid_models = ["haiku", "sonnet", "opus"]
+    if model not in valid_models:
+        raise ValueError(f"Invalid model: {model}. Must be one of: {valid_models}")
+    config = load_config()
+    config["model"] = model
+    save_config(config)

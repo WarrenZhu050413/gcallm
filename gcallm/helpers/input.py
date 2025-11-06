@@ -45,6 +45,58 @@ def get_from_clipboard() -> Optional[str]:
         return None
 
 
+def open_editor(file_path: Optional[str] = None) -> Optional[str]:
+    """Open editor for a specific file path or create temp file.
+
+    Args:
+        file_path: Path to file to edit (creates temp if None)
+
+    Returns:
+        Content from editor, or None if cancelled
+    """
+    editor = os.environ.get("EDITOR", "vim")
+
+    if file_path:
+        # Edit existing file
+        edit_path = Path(file_path)
+    else:
+        # Create temp file
+        with tempfile.NamedTemporaryFile(
+            mode="w+", suffix=".txt", delete=False
+        ) as tf:
+            edit_path = Path(tf.name)
+            # Write helpful prompt
+            tf.write("\n\n\n")
+            tf.write("# Enter your event description above\n")
+            tf.write("# Lines starting with # will be ignored\n")
+            tf.write("# Save and quit to create events\n")
+            tf.flush()
+
+    try:
+        # Open editor
+        subprocess.run([editor, str(edit_path)], check=True)
+
+        # Read content
+        content = edit_path.read_text()
+
+        # Filter out comment lines and empty lines
+        lines = [
+            line
+            for line in content.split("\n")
+            if line.strip() and not line.strip().startswith("#")
+        ]
+
+        result = "\n".join(lines).strip()
+        return result if result else None
+
+    except (subprocess.CalledProcessError, KeyboardInterrupt):
+        return None
+    finally:
+        # Clean up temp file if we created it
+        if not file_path and edit_path.exists():
+            edit_path.unlink()
+
+
 def get_from_editor() -> Optional[str]:
     """Open default editor and return content.
 
@@ -53,42 +105,7 @@ def get_from_editor() -> Optional[str]:
     Returns:
         Content from editor, or None if user didn't write anything or cancelled
     """
-    editor = os.environ.get("EDITOR", "vim")
-
-    # Create temporary file
-    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as tf:
-        temp_path = Path(tf.name)
-
-        # Write helpful prompt - instructions at bottom so cursor starts at top
-        tf.write("\n\n\n")
-        tf.write("# Enter your event description above\n")
-        tf.write("# Lines starting with # will be ignored\n")
-        tf.write("# Save and quit to create events\n")
-        tf.flush()
-
-        try:
-            # Open editor
-            subprocess.run([editor, str(temp_path)], check=True)
-
-            # Read content
-            content = temp_path.read_text()
-
-            # Filter out comment lines and empty lines
-            lines = [
-                line
-                for line in content.split("\n")
-                if line.strip() and not line.strip().startswith("#")
-            ]
-
-            result = "\n".join(lines).strip()
-            return result if result else None
-
-        except (subprocess.CalledProcessError, KeyboardInterrupt):
-            return None
-        finally:
-            # Clean up temp file
-            if temp_path.exists():
-                temp_path.unlink()
+    return open_editor()
 
 
 def get_input(

@@ -152,15 +152,17 @@ IMPORTANT: In Phase 1, DO NOT create any events. Only analyze and report conflic
 class CalendarAgent:
     """Claude agent with Google Calendar MCP access."""
 
-    def __init__(self, console: Optional[Console] = None, model: str = "sonnet"):
+    def __init__(self, console: Optional[Console] = None, model: Optional[str] = None):
         """Initialize the calendar agent.
 
         Args:
             console: Rich console for output
-            model: Claude model to use (sonnet, opus, haiku)
+            model: Claude model to use (haiku, sonnet, opus). If None, uses configured model.
         """
+        from gcallm.config import get_model
+
         self.console = console or Console()
-        self.model = model
+        self.model = model or get_model()  # Default to configured model (haiku)
         self.captured_tool_results: list[dict] = []
 
     async def _post_tool_use_hook(
@@ -492,21 +494,8 @@ def create_events(
 
     console.print()
 
-    # Handle result - can be either dict (with tool_results) or string (legacy/interactive)
+    # Return result without formatting (CLI will format)
+    # Extract text if dict, otherwise return as-is
     if isinstance(result, dict):
-        # Use tool results if available, otherwise fall back to text
-        from gcallm.formatter import format_tool_results, format_event_response
-
-        if result.get("tool_results"):
-            format_tool_results(result["tool_results"], console)
-        else:
-            # Fallback to parsing Claude's text response
-            format_event_response(result["text"], console)
-
-        return result["text"]
-    else:
-        # Legacy string return (for interactive mode or old code paths)
-        from gcallm.formatter import format_event_response
-
-        format_event_response(result, console)
-        return result
+        return result.get("text", result)
+    return result
