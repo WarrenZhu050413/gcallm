@@ -41,3 +41,12 @@ class TestXMLInteractivePrompt:
         # Should have strong language about following format
         assert "CRITICAL" in INTERACTIVE_SYSTEM_PROMPT or "MUST" in INTERACTIVE_SYSTEM_PROMPT
         assert "exact" in INTERACTIVE_SYSTEM_PROMPT.lower() or "exactly" in INTERACTIVE_SYSTEM_PROMPT.lower()
+
+    def test_prompt_does_not_have_legacy_text_format(self):
+        """Test that old text-based format markers are removed."""
+        # Should NOT have old emoji-based markers
+        assert "📋 CONFLICT CHECK: NO CONFLICTS" not in INTERACTIVE_SYSTEM_PROMPT
+        assert "⚠️ CONFLICT CHECK: IMPORTANT CONFLICTS DETECTED" not in INTERACTIVE_SYSTEM_PROMPT
+        assert "📋 CONFLICT CHECK: MINOR CONFLICTS" not in INTERACTIVE_SYSTEM_PROMPT
+        # Should NOT have the old text format section
+        assert "PHASE 1 RESPONSE FORMAT:" not in INTERACTIVE_SYSTEM_PROMPT
