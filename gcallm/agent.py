@@ -121,7 +121,12 @@ EXAMPLE 3 (Minor Conflict):
   <user_decision_required>false</user_decision_required>
 </conflict_analysis>
 
-YOU MUST USE EXACTLY THIS XML FORMAT. Do NOT add explanatory text, questions, or alternatives.
+CRITICAL INSTRUCTION - READ THIS CAREFULLY:
+In Phase 1, after using the MCP tools, your response must be ONLY the XML <conflict_analysis> tag.
+- Do NOT write explanatory text like "I'll analyze..." or "Let me check..."
+- Do NOT narrate what you're doing
+- JUST output the <conflict_analysis>...</conflict_analysis> XML structure
+- Nothing before it, nothing after it
 
 INTERACTIVE MODE WORKFLOW:
 This is a TWO-PHASE workflow for conflict-aware event creation:
@@ -132,7 +137,7 @@ PHASE 1 - ANALYSIS (DO NOT CREATE EVENTS YET):
 3. If the input contains screenshot paths, use the Read tool to analyze the images
 4. Parse the event information and determine what events would be created
 5. Check for conflicts using mcp__google-calendar__get-freebusy for each proposed event
-6. Respond with CONFLICT REPORT (see format below)
+6. Output ONLY the XML <conflict_analysis> structure - NOTHING ELSE
 
 PHASE 2 - CREATION (after user confirmation):
 1. Create the events using mcp__google-calendar__create-event
@@ -161,7 +166,10 @@ SCREENSHOT ANALYSIS:
 - Create all events found in screenshots
 - Note any uncertainties in the report
 
-IMPORTANT: In Phase 1, DO NOT create any events. Only analyze and report conflicts. Wait for Phase 2 instructions to actually create the events.
+CRITICAL REMINDERS:
+- Phase 1: Output ONLY the <conflict_analysis> XML structure shown in the examples above
+- Phase 1: DO NOT create any events, DO NOT add explanatory text, DO NOT ask questions
+- Phase 2: After user confirmation, create the events and provide a summary
 """
 
 
@@ -286,7 +294,8 @@ class CalendarAgent:
 
         if interactive:
             full_prompt += (
-                "\nPlease analyze this request and check for conflicts (Phase 1)."
+                "\nPHASE 1: Analyze and output the <conflict_analysis> XML structure ONLY. "
+                "Do not add any other text."
             )
         else:
             full_prompt += "\nPlease create the event(s) as described."
