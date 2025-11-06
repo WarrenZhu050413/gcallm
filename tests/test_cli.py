@@ -334,3 +334,88 @@ class TestConfigCommand:
         # Should show current config (same as 'show')
         assert result.exit_code == 0
         assert "Current Configuration" in result.stdout or "Model:" in result.stdout
+
+
+class TestMainRouting:
+    """Integration tests for main() entry point routing."""
+
+    @patch("gcallm.cli.app")
+    def test_main_routes_config_to_typer(self, mock_app):
+        """Test that main() routes 'config' command to Typer app."""
+        import sys
+        from gcallm.cli import main
+
+        # Simulate 'gcallm config'
+        original_argv = sys.argv
+        try:
+            sys.argv = ["gcallm", "config"]
+            main()
+            # Should call app() to let Typer handle it
+            mock_app.assert_called_once()
+        finally:
+            sys.argv = original_argv
+
+    @patch("gcallm.cli.app")
+    def test_main_routes_config_show_to_typer(self, mock_app):
+        """Test that main() routes 'config show' to Typer app."""
+        import sys
+        from gcallm.cli import main
+
+        # Simulate 'gcallm config show'
+        original_argv = sys.argv
+        try:
+            sys.argv = ["gcallm", "config", "show"]
+            main()
+            # Should call app() to let Typer handle it
+            mock_app.assert_called_once()
+        finally:
+            sys.argv = original_argv
+
+    @patch("gcallm.cli.app")
+    def test_main_routes_help_flags_to_typer(self, mock_app):
+        """Test that main() routes --help to Typer app."""
+        import sys
+        from gcallm.cli import main
+
+        # Simulate 'gcallm --help'
+        original_argv = sys.argv
+        try:
+            sys.argv = ["gcallm", "--help"]
+            main()
+            # Should call app() to let Typer handle it
+            mock_app.assert_called_once()
+        finally:
+            sys.argv = original_argv
+
+    @patch("gcallm.cli.default_command")
+    def test_main_routes_unknown_to_default_command(self, mock_default):
+        """Test that main() routes unknown commands to default_command()."""
+        import sys
+        from gcallm.cli import main
+
+        # Simulate 'gcallm Meeting tomorrow'
+        original_argv = sys.argv
+        try:
+            sys.argv = ["gcallm", "Meeting", "tomorrow"]
+            main()
+            # Should call default_command()
+            mock_default.assert_called_once()
+        finally:
+            sys.argv = original_argv
+
+    @patch("gcallm.cli.app")
+    def test_main_routes_all_known_commands_to_typer(self, mock_app):
+        """Test that all KNOWN_COMMANDS are routed to Typer."""
+        import sys
+        from gcallm.cli import main, KNOWN_COMMANDS
+
+        original_argv = sys.argv
+        try:
+            for cmd in KNOWN_COMMANDS:
+                mock_app.reset_mock()
+                sys.argv = ["gcallm", cmd]
+                main()
+                # Each known command should call app()
+                assert mock_app.called, f"Command '{cmd}' was not routed to app()"
+        finally:
+            sys.argv = original_argv

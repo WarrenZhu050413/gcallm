@@ -15,6 +15,17 @@ from gcallm.formatter import format_event_response
 from gcallm.helpers.input import get_input
 
 
+# Known subcommands (used by both default_command and main routing)
+KNOWN_COMMANDS = [
+    "verify",
+    "status",
+    "calendars",
+    "add",
+    "setup",
+    "config",
+    "prompt",
+]
+
 # Initialize Typer app and console
 app = typer.Typer(
     name="gcallm",
@@ -39,8 +50,7 @@ def default_command():
     args = sys.argv[1:]
 
     # Check if it's a known subcommand
-    known_commands = ["verify", "status", "calendars", "add", "setup", "config", "prompt"]
-    if args and args[0] in known_commands:
+    if args and args[0] in KNOWN_COMMANDS:
         return None  # Let Typer handle it
 
     # Otherwise, treat as event description
@@ -612,13 +622,7 @@ def main():
         else:
             # No args and no stdin - show help
             app()
-    elif sys.argv[1] not in [
-        "verify",
-        "status",
-        "calendars",
-        "add",
-        "setup",
-        "prompt",
+    elif sys.argv[1] not in KNOWN_COMMANDS + [
         "--help",
         "-h",
         "--install-completion",
