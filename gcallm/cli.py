@@ -2,6 +2,7 @@
 """Command-line interface for gcallm."""
 
 from enum import Enum
+from pathlib import Path
 from typing import Optional
 
 import sys
@@ -383,12 +384,149 @@ def setup(
 
 
 @app.command()
+def config(
+    setting: Optional[str] = typer.Argument(None, help="Setting to configure (model, prompt, show)"),
+    value: Optional[str] = typer.Argument(None, help="Value to set (for model)"),
+    clear: bool = typer.Option(False, "--clear", help="Clear/reset the setting"),
+) -> None:
+    """Configure gcallm settings (model, prompt).
+
+    [bold cyan]EXAMPLES[/bold cyan]:
+      [dim]$[/dim] gcallm config show              [dim]# Show current configuration[/dim]
+      [dim]$[/dim] gcallm config model haiku       [dim]# Set model to haiku[/dim]
+      [dim]$[/dim] gcallm config model sonnet      [dim]# Set model to sonnet[/dim]
+      [dim]$[/dim] gcallm config model opus        [dim]# Set model to opus[/dim]
+      [dim]$[/dim] gcallm config prompt            [dim]# Edit custom system prompt[/dim]
+      [dim]$[/dim] gcallm config prompt --clear    [dim]# Reset to default prompt[/dim]
+    """
+    from gcallm.config import (
+        get_model,
+        set_model,
+        get_custom_system_prompt,
+        set_custom_system_prompt,
+        clear_custom_system_prompt,
+        get_oauth_credentials_path,
+    )
+    from gcallm.agent import SYSTEM_PROMPT
+    from gcallm.helpers.input import open_editor
+    import tempfile
+
+    try:
+        # Handle 'show' subcommand
+        if setting == "show" or setting is None:
+            console.print()
+            console.print("[bold cyan]Current Configuration[/bold cyan]")
+            console.print()
+
+            # Show model
+            current_model = get_model()
+            console.print(f"[dim]Model:[/dim] {current_model}")
+
+            # Show custom prompt status
+            custom_prompt = get_custom_system_prompt()
+            if custom_prompt:
+                prompt_preview = custom_prompt[:50] + "..." if len(custom_prompt) > 50 else custom_prompt
+                console.print(f"[dim]Custom Prompt:[/dim] {prompt_preview}")
+            else:
+                console.print(f"[dim]Custom Prompt:[/dim] [yellow]Using default[/yellow]")
+
+            # Show OAuth path
+            oauth_path = get_oauth_credentials_path()
+            if oauth_path:
+                console.print(f"[dim]OAuth Credentials:[/dim] {oauth_path}")
+            else:
+                console.print(f"[dim]OAuth Credentials:[/dim] [yellow]Not configured[/yellow]")
+
+            console.print()
+            return
+
+        # Handle 'model' subcommand
+        if setting == "model":
+            if not value:
+                console.print("[red]Error:[/red] Please specify a model (haiku, sonnet, opus)")
+                console.print("[dim]Example:[/dim] gcallm config model haiku")
+                raise typer.Exit(code=1)
+
+            try:
+                set_model(value)
+                console.print()
+                console.print(f"[green]✓[/green] Model set to: [bold]{value}[/bold]")
+                console.print()
+            except ValueError as e:
+                console.print(f"[red]Error:[/red] {e}")
+                raise typer.Exit(code=1)
+            return
+
+        # Handle 'prompt' subcommand
+        if setting == "prompt":
+            if clear:
+                # Reset to default
+                clear_custom_system_prompt()
+                console.print()
+                console.print("[green]✓[/green] System prompt reset to default")
+                console.print()
+                return
+
+            # Get current custom prompt or default
+            current_prompt = get_custom_system_prompt() or SYSTEM_PROMPT
+
+            # Write to temp file
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tf:
+                tf.write(current_prompt)
+                tf.write("\n\n")
+                tf.write("# Edit the system prompt above\n")
+                tf.write("# Lines starting with # will be ignored\n")
+                tf.write("# Save and quit to update the prompt\n")
+                temp_path = tf.name
+
+            try:
+                # Open editor
+                console.print()
+                console.print("[cyan]Opening editor to customize system prompt...[/cyan]")
+                console.print()
+
+                new_prompt = open_editor(temp_path)
+
+                if not new_prompt or new_prompt.strip() == "":
+                    console.print("[yellow]Prompt editing cancelled[/yellow]")
+                    return
+
+                # Save custom prompt
+                set_custom_system_prompt(new_prompt)
+
+                console.print()
+                console.print("[green]✓[/green] System prompt updated")
+                console.print()
+                console.print("[dim]Use 'gcallm config prompt --clear' to revert to default[/dim]")
+                console.print()
+
+            finally:
+                # Clean up temp file
+                Path(temp_path).unlink(missing_ok=True)
+
+            return
+
+        # Unknown setting
+        console.print(f"[red]Error:[/red] Unknown setting: {setting}")
+        console.print("[dim]Valid settings:[/dim] model, prompt, show")
+        raise typer.Exit(code=1)
+
+    except typer.Abort:
+        console.print("\n[yellow]Cancelled[/yellow]")
+        raise typer.Exit(code=130)
+    except Exception as e:
+        if "Invalid model" not in str(e):
+            format_error(str(e), console)
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def prompt(
     reset: bool = typer.Option(
         False, "--reset", "-r", help="Reset to default system prompt"
     )
 ) -> None:
-    """Customize the system prompt via editor.
+    """[deprecated] Use 'gcallm config prompt' instead.
 
     [bold cyan]EXAMPLES[/bold cyan]:
       [dim]$[/dim] gcallm prompt          [dim]# Edit custom prompt in editor[/dim]

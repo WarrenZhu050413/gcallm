@@ -19,10 +19,10 @@ class TestCalendarAgent:
         assert agent.model == "haiku"
 
     def test_agent_default_model(self):
-        """Test agent uses sonnet by default."""
+        """Test agent uses haiku by default (from config)."""
         agent = CalendarAgent()
 
-        assert agent.model == "sonnet"
+        assert agent.model == "haiku"
 
     @pytest.mark.asyncio
     @patch("gcallm.agent.ClaudeSDKClient")
