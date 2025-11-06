@@ -67,6 +67,62 @@ INTERACTIVE_SYSTEM_PROMPT = """You are a calendar assistant. The user will provi
 
 CRITICAL: You MUST use the Google Calendar MCP tools (prefixed with mcp__google-calendar__). DO NOT use bash tools like gcalcli.
 
+CRITICAL RESPONSE FORMAT - Use EXACTLY this XML structure in Phase 1:
+
+EXAMPLE 1 (Important Conflict):
+<conflict_analysis>
+  <status>important_conflicts</status>
+  <proposed_events>
+    <event>
+      <title>Team Meeting</title>
+      <datetime>Monday, November 10 at 2:00 PM - 3:00 PM (EST)</datetime>
+    </event>
+  </proposed_events>
+  <conflicts>
+    <conflict>
+      <title>Project Review</title>
+      <time>2:00 PM - 2:30 PM</time>
+    </conflict>
+    <conflict>
+      <title>Client Call</title>
+      <time>2:30 PM - 3:00 PM</time>
+    </conflict>
+  </conflicts>
+  <user_decision_required>true</user_decision_required>
+</conflict_analysis>
+
+EXAMPLE 2 (No Conflicts):
+<conflict_analysis>
+  <status>no_conflicts</status>
+  <proposed_events>
+    <event>
+      <title>Lunch</title>
+      <datetime>Tuesday at 12:00 PM - 1:00 PM (EST)</datetime>
+    </event>
+  </proposed_events>
+  <user_decision_required>false</user_decision_required>
+</conflict_analysis>
+
+EXAMPLE 3 (Minor Conflict):
+<conflict_analysis>
+  <status>minor_conflicts</status>
+  <proposed_events>
+    <event>
+      <title>Coffee Chat</title>
+      <datetime>Friday at 10:00 AM - 10:30 AM (EST)</datetime>
+    </event>
+  </proposed_events>
+  <conflicts>
+    <conflict>
+      <title>Team Standup (Tentative)</title>
+      <time>10:00 AM - 10:15 AM</time>
+    </conflict>
+  </conflicts>
+  <user_decision_required>false</user_decision_required>
+</conflict_analysis>
+
+YOU MUST USE EXACTLY THIS XML FORMAT. Do NOT add explanatory text, questions, or alternatives.
+
 INTERACTIVE MODE WORKFLOW:
 This is a TWO-PHASE workflow for conflict-aware event creation:
 
@@ -93,6 +149,8 @@ CONFLICT DETECTION:
   - The existing event is marked as "Free" or "Tentative"
 
 PHASE 1 RESPONSE FORMAT:
+CRITICAL: You MUST use these EXACT formats. Do not add explanatory text or ask questions.
+
 If NO conflicts found:
 ```
 📋 CONFLICT CHECK: NO CONFLICTS
@@ -105,7 +163,7 @@ I will create the following event(s):
 Ready to proceed.
 ```
 
-If IMPORTANT conflicts found:
+If IMPORTANT conflicts found, you MUST end with the marker <<AWAIT_USER_DECISION>>:
 ```
 ⚠️ CONFLICT CHECK: IMPORTANT CONFLICTS DETECTED
 
@@ -120,6 +178,7 @@ Conflicts detected:
 
 <<AWAIT_USER_DECISION>>
 ```
+DO NOT ask questions or wait for user input - just output the marker above.
 
 If MINOR conflicts found:
 ```
@@ -316,11 +375,14 @@ class CalendarAgent:
         )
 
         # PHASE 1: Analyze and check for conflicts
-        phase1_response = await self.process_events(
+        phase1_result = await self.process_events(
             user_input=user_input,
             screenshot_paths=screenshot_paths,
             interactive=True,
         )
+
+        # Extract text from result (process_events returns dict now)
+        phase1_response = phase1_result["text"]
 
         # Parse the conflict report
         report = ConflictReport.from_response(phase1_response)
