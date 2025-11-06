@@ -163,7 +163,9 @@ class CalendarAgent:
         self.model = model
         self.captured_tool_results: list[dict] = []
 
-    async def _post_tool_use_hook(self, hook_input: dict, session_id: str | None, context: dict) -> dict:
+    async def _post_tool_use_hook(
+        self, hook_input: dict, session_id: str | None, context: dict
+    ) -> dict:
         """Hook to capture MCP tool results after tool execution.
 
         NOTE: This hook is configured but does NOT fire in production with current SDK.
@@ -183,7 +185,11 @@ class CalendarAgent:
         # Only capture Google Calendar create-event results
         if tool_name == "mcp__google-calendar__create-event" and tool_response:
             # tool_response should be the event dict from MCP
-            if isinstance(tool_response, dict) and "event_id" in tool_response and "summary" in tool_response:
+            if (
+                isinstance(tool_response, dict)
+                and "event_id" in tool_response
+                and "summary" in tool_response
+            ):
                 self.captured_tool_results.append(tool_response)
 
         return {}
@@ -233,6 +239,7 @@ class CalendarAgent:
 
         # Configure PostToolUse hook to capture MCP tool results
         from claude_agent_sdk.types import HookMatcher
+
         hooks = {
             "PostToolUse": [
                 HookMatcher(
@@ -361,6 +368,7 @@ class CalendarAgent:
 
         # Configure PostToolUse hook for interactive mode too
         from claude_agent_sdk.types import HookMatcher
+
         hooks = {
             "PostToolUse": [
                 HookMatcher(

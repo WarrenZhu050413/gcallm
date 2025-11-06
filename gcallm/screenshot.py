@@ -1,6 +1,57 @@
 """Screenshot discovery and management for event creation."""
 
+import shutil
+from datetime import datetime
 from pathlib import Path
+
+
+def _has_problematic_chars(path: Path) -> bool:
+    """Check if filename contains characters that cause Read tool failures.
+
+    Problematic characters include:
+    - Parentheses: () - Common in Spanish "a la(s)"
+    - Spanish time format: "p.m." or "a.m." with double period before extension
+
+    Args:
+        path: Path to check
+
+    Returns:
+        True if filename has problematic characters
+    """
+    name = path.name
+    # Check for parentheses (common in Spanish "a la(s)")
+    if "(" in name or ")" in name:
+        return True
+    # Check for Spanish time format pattern: "p.m." or "a.m." followed by another period
+    # e.g., "3.27.08 p.m..png" has double period before extension
+    if " p.m.." in name or " a.m.." in name:
+        return True
+    return False
+
+
+def _sanitize_screenshot_path(path: Path, index: int = 1) -> Path:
+    """Create a sanitized copy of screenshot with clean filename.
+
+    Args:
+        path: Original screenshot path with problematic characters
+        index: Index number for temp filename
+
+    Returns:
+        Path to sanitized copy
+    """
+    # Create temp directory for sanitized screenshots
+    temp_dir = Path.home() / "Desktop" / ".gcallm_temp_screenshots"
+    temp_dir.mkdir(exist_ok=True)
+
+    # Generate clean filename with date and index
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    clean_name = f"{date_str}-screenshot-{index}.png"
+    sanitized_path = temp_dir / clean_name
+
+    # Copy (not move) to preserve original
+    shutil.copy2(str(path), str(sanitized_path))
+
+    return sanitized_path
 
 
 def find_recent_screenshots(count: int = 1, directory: str = "~/Desktop") -> list[str]:
@@ -12,12 +63,15 @@ def find_recent_screenshots(count: int = 1, directory: str = "~/Desktop") -> lis
     - French: Capture d'écran*.png
     - German: Bildschirmfoto*.png
 
+    Automatically sanitizes filenames with problematic characters (parentheses,
+    Spanish/French time formats) by creating clean copies in a temp directory.
+
     Args:
         count: Number of screenshots to return (default: 1)
         directory: Directory to search (default: ~/Desktop)
 
     Returns:
-        List of absolute paths to screenshots, sorted newest-first
+        List of absolute paths to screenshots (sanitized if needed), sorted newest-first
 
     Raises:
         FileNotFoundError: If directory doesn't exist
@@ -53,4 +107,18 @@ def find_recent_screenshots(count: int = 1, directory: str = "~/Desktop") -> lis
     # Sort by modification time (newest first)
     screenshots.sort(key=lambda p: p.stat().st_mtime, reverse=True)
 
-    return [str(p) for p in screenshots[:count]]
+    # Take requested count
+    selected = screenshots[:count]
+
+    # Sanitize paths with problematic characters
+    result_paths = []
+    for idx, screenshot in enumerate(selected, start=1):
+        if _has_problematic_chars(screenshot):
+            # Create sanitized copy
+            sanitized = _sanitize_screenshot_path(screenshot, index=idx)
+            result_paths.append(str(sanitized))
+        else:
+            # Use original path
+            result_paths.append(str(screenshot))
+
+    return result_paths

@@ -158,7 +158,9 @@ class TestCalendarAgent:
         assert event["start"] == "2025-11-05T09:00:00-05:00"
         assert event["end"] == "2025-11-05T09:30:00-05:00"
         assert event["location"] == "Conference Room A"
-        assert event["htmlLink"] == "https://www.google.com/calendar/event?eid=abc123xyz"
+        assert (
+            event["htmlLink"] == "https://www.google.com/calendar/event?eid=abc123xyz"
+        )
 
 
 class TestCreateEvents:

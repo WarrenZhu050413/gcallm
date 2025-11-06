@@ -93,7 +93,10 @@ class TestScreenshotDiscovery:
             result = find_recent_screenshots(count=1, directory=tmpdir)
 
             assert len(result) == 1
-            assert "Captura de pantalla" in result[0]
+            # Spanish screenshot with special chars should be auto-sanitized
+            assert ".gcallm_temp_screenshots" in result[0]
+            # Original file should still exist
+            assert screenshot.exists()
 
     def test_french_screenshot_pattern(self):
         """Test finding French macOS screenshots (Capture d'écran)."""
@@ -142,9 +145,38 @@ class TestScreenshotDiscovery:
 
             # Should return all 3, sorted by mtime (newest first)
             assert len(result) == 3
-            assert "Capture d'écran" in result[0]  # French (newest)
-            assert "Captura de pantalla" in result[1]  # Spanish
+            assert "Capture d'écran" in result[0]  # French (newest, no special chars)
+            # Spanish has special chars, should be sanitized
+            assert ".gcallm_temp_screenshots" in result[1]
             assert "Screenshot" in result[2]  # English (oldest)
+
+    def test_spanish_screenshot_sanitization(self):
+        """Test that Spanish screenshots with special chars are auto-sanitized."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create Spanish screenshot with problematic characters
+            # "a la(s)" has parentheses, "p.m." has multiple periods
+            spanish = (
+                Path(tmpdir) / "Captura de pantalla 2025-11-04 a la(s) 3.27.08 p.m..png"
+            )
+            spanish.write_text("test")  # Create non-empty file
+
+            result = find_recent_screenshots(count=1, directory=tmpdir)
+
+            # Should return sanitized path (not original with special chars)
+            assert len(result) == 1
+            result_path = Path(result[0])
+
+            # Sanitized file should exist
+            assert result_path.exists()
+
+            # Sanitized filename should NOT have parentheses or multiple periods
+            assert "(" not in result_path.name
+            assert ")" not in result_path.name
+            # Check that it's in temp directory
+            assert ".gcallm_temp_screenshots" in str(result_path)
+
+            # Original file should still exist (copy, not move)
+            assert spanish.exists()
 
 
 class TestCLIIntegration:
