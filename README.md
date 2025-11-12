@@ -1,6 +1,8 @@
 # gcallm: Google Calendar w/ Claude
 
-gcallm is a simple CLI that uses Claude to add events to Google Calendar in natural language. It supports text input, screenshots, clipboard, and more.
+gcallm is a simple CLI that uses Claude to add events to Google Calendar in natural language. It supports text input, screenshots, clipboard. It also supports interactive workflows where you use a text editor to input the gcal information, as well as asking the user for confirmation if it finds significant conflict. I found it useful. I hope you do too!
+
+## Quickstart
 
 ```bash
 $ gcallm "Coffee with Sarah tomorrow at 2pm"
@@ -10,13 +12,13 @@ Coffee with Sarah
 - Calendar: primary
 ```
 
-## Features
+- **Direct input** - `gcallm "Meeting tomorrow"`
+- **Screenshots** - `gcallm -s`
+- **Clipboard** - `gcallm -c`
+- **Stdin** - `pbpaste | gcallm`
+- **Editor** - `gcallm` (opens $EDITOR)
+- **URL** - `gcallm "https://example.com/event"`
 
-- **Natural Language** - Add events using plain English
-- **Screenshot Support** - Extract event details from screenshots automatically
-- **Interactive Mode** - Check for conflicts before creating events
-- **Multiple Input Methods** - Text, URL, clipboard, stdin, editor, screenshots
-- **Zero Config** - MCP server configured automatically in code
 
 ## Installation
 
@@ -141,15 +143,6 @@ gcallm -i "Workshop tomorrow 2-5pm"
 
 Claude checks your calendar and warns you about conflicts, letting you decide whether to proceed.
 
-### Multiple Input Methods
-
-- **Direct input** - `gcallm "Meeting tomorrow"`
-- **Screenshots** - `gcallm -s`
-- **Clipboard** - `gcallm -c`
-- **Stdin** - `pbpaste | gcallm`
-- **Editor** - `gcallm` (opens $EDITOR)
-- **URL** - `gcallm "https://example.com/event"`
-
 ## Prerequisites
 
 - **Python 3.10+**
@@ -225,7 +218,8 @@ See [CLAUDE.md](CLAUDE.md) for architecture details.
 ## Acknowledgments
 
 - **OAuth Setup**: Instructions adapted from [@cocal/google-calendar-mcp](https://github.com/nspady/google-calendar-mcp)
-- **Inspiration**: Inspired by [gmaillm](https://github.com/grll/gmaillm)
+- **Coding Agent**: Uses [Claude Code](https://github.com/anthropics/claude-code)
+- **Agent Development Environment**: Uses [orchestra](https://github.com/fulcrumresearch/orchestra)
 
 ## License
 
@@ -233,4 +227,4 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## Author
 
-Created by Warren Zhu ([@WarrenZhu050413](https://github.com/WarrenZhu050413))
+Created by Warren Zhu ([@WarrenZhu050413](https://www.warrenzhu.com/))
