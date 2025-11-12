@@ -39,22 +39,6 @@ class TestVerifyCommand:
         assert "Verification failed" in result.stdout
 
 
-class TestStatusCommand:
-    """Tests for the status command."""
-
-    @patch("gcallm.agent.CalendarAgent")
-    def test_status_shows_calendars(self, mock_agent_class):
-        """Test status command shows calendar information."""
-        mock_agent = Mock()
-        mock_agent.run.return_value = "Calendar 1: primary\nCalendar 2: work"
-        mock_agent_class.return_value = mock_agent
-
-        result = runner.invoke(app, ["status"])
-
-        assert result.exit_code == 0
-        assert "Google Calendar Status" in result.stdout
-
-
 class TestCalendarsCommand:
     """Tests for the calendars command."""
 
@@ -68,7 +52,78 @@ class TestCalendarsCommand:
         result = runner.invoke(app, ["calendars"])
 
         assert result.exit_code == 0
-        assert "Available Calendars" in result.stdout
+        # Verify the agent was called with calendar query
+        assert mock_agent.run.called
+        call_args = mock_agent.run.call_args[0][0]
+        assert "calendars" in call_args.lower()
+
+
+class TestAskCommand:
+    """Tests for the ask command."""
+
+    @patch("gcallm.agent.CalendarAgent")
+    def test_ask_command_with_question(self, mock_agent_class):
+        """Test ask command with natural language question."""
+        mock_agent = Mock()
+        mock_agent.run.return_value = "You have 3 meetings tomorrow"
+        mock_agent_class.return_value = mock_agent
+
+        result = runner.invoke(app, ["ask", "What meetings do I have tomorrow?"])
+
+        assert result.exit_code == 0
+        assert mock_agent.run.called
+        # Verify the question was passed to the agent
+        call_args = mock_agent.run.call_args[0][0]
+        assert "What meetings do I have tomorrow?" in call_args
+
+    @patch("gcallm.config.get_model")
+    @patch("gcallm.agent.CalendarAgent")
+    def test_ask_command_with_model_override(self, mock_agent_class, mock_get_model):
+        """Test ask command respects --model flag."""
+        mock_agent = Mock()
+        mock_agent.run.return_value = "Response"
+        mock_agent_class.return_value = mock_agent
+        mock_get_model.return_value = "haiku"
+
+        result = runner.invoke(app, ["ask", "Test question", "--model", "sonnet"])
+
+        assert result.exit_code == 0
+        # Verify CalendarAgent was initialized with sonnet model
+        assert mock_agent_class.call_args[1]["model"] == "sonnet"
+
+    @patch("gcallm.agent.CalendarAgent")
+    def test_ask_command_error_handling(self, mock_agent_class):
+        """Test ask command handles errors gracefully."""
+        mock_agent = Mock()
+        mock_agent.run.side_effect = Exception("Calendar API error")
+        mock_agent_class.return_value = mock_agent
+
+        result = runner.invoke(app, ["ask", "Test question"])
+
+        assert result.exit_code == 1
+        assert "error" in result.stdout.lower() or "Error" in result.stdout
+
+
+class TestCommandRemovals:
+    """Tests verifying deprecated commands are removed."""
+
+    def test_status_command_removed(self):
+        """Verify status command no longer exists in KNOWN_COMMANDS."""
+        from gcallm.cli import KNOWN_COMMANDS
+
+        assert "status" not in KNOWN_COMMANDS
+
+    def test_prompt_command_removed(self):
+        """Verify deprecated prompt command is removed from KNOWN_COMMANDS."""
+        from gcallm.cli import KNOWN_COMMANDS
+
+        assert "prompt" not in KNOWN_COMMANDS
+
+    def test_ask_command_exists(self):
+        """Verify ask command is in KNOWN_COMMANDS."""
+        from gcallm.cli import KNOWN_COMMANDS
+
+        assert "ask" in KNOWN_COMMANDS
 
 
 class TestAddCommand:

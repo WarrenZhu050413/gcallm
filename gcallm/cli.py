@@ -28,12 +28,11 @@ from gcallm.helpers.input_sources import (
 # Known subcommands (used by both default_command and main routing)
 KNOWN_COMMANDS = [
     "verify",
-    "status",
+    "ask",
     "calendars",
     "add",
     "setup",
     "config",
-    "prompt",
 ]
 
 # Initialize Typer app and console
@@ -267,24 +266,31 @@ def verify() -> None:
 
 
 @app.command()
-def status() -> None:
-    """Show Google Calendar status.
+def ask(
+    question: str = typer.Argument(..., help="Question about your calendar"),
+    model: Optional[str] = typer.Option(
+        None, "--model", "-m", help="Model to use (haiku, sonnet, opus)"
+    ),
+) -> None:
+    """Ask Claude questions about your Google Calendar.
 
-    [bold cyan]EXAMPLE[/bold cyan]:
-      [dim]$[/dim] gcallm status
+    [bold cyan]EXAMPLES[/bold cyan]:
+      [dim]$[/dim] gcallm ask "What meetings do I have tomorrow?"
+      [dim]$[/dim] gcallm ask "List my calendars"
+      [dim]$[/dim] gcallm ask "Do I have any conflicts this week?"
+      [dim]$[/dim] gcallm ask "Show events on Friday" -m sonnet
     """
     try:
-        console.print("=" * 60)
-        console.print("Google Calendar Status")
-        console.print("=" * 60)
-        console.print()
-
         from gcallm.agent import CalendarAgent
+        from gcallm.config import get_model
 
-        agent = CalendarAgent(console=console, model="haiku")
+        # Use provided model or fall back to config
+        agent_model = model or get_model()
 
-        with console.status("[bold green]Fetching calendar info...", spinner="dots"):
-            result = agent.run("List my available calendars")
+        agent = CalendarAgent(console=console, model=agent_model)
+
+        with console.status("[bold green]Processing question...", spinner="dots"):
+            result = agent.run(question)
 
         console.print(result)
         console.print()
@@ -296,23 +302,18 @@ def status() -> None:
 
 @app.command()
 def calendars() -> None:
-    """List available calendars.
+    """List available calendars (convenience alias for 'ask').
 
     [bold cyan]EXAMPLE[/bold cyan]:
       [dim]$[/dim] gcallm calendars
     """
     try:
-        console.print("=" * 60)
-        console.print("Available Calendars")
-        console.print("=" * 60)
-        console.print()
-
         from gcallm.agent import CalendarAgent
 
         agent = CalendarAgent(console=console, model="haiku")
 
         with console.status("[bold green]Fetching calendars...", spinner="dots"):
-            result = agent.run("Show me all my calendars with their names and IDs")
+            result = agent.run("List all my calendars with names and IDs")
 
         console.print(result)
         console.print()
@@ -530,86 +531,6 @@ def config(
     except Exception as e:
         if "Invalid model" not in str(e):
             format_error(str(e), console)
-        raise typer.Exit(code=1)
-
-
-@app.command()
-def prompt(
-    reset: bool = typer.Option(
-        False, "--reset", "-r", help="Reset to default system prompt"
-    ),
-) -> None:
-    """[deprecated] Use 'gcallm config prompt' instead.
-
-    [bold cyan]EXAMPLES[/bold cyan]:
-      [dim]$[/dim] gcallm prompt          [dim]# Edit custom prompt in editor[/dim]
-      [dim]$[/dim] gcallm prompt --reset  [dim]# Reset to default prompt[/dim]
-    """
-    import tempfile
-
-    from gcallm.agent import SYSTEM_PROMPT
-    from gcallm.config import (
-        clear_custom_system_prompt,
-        get_custom_system_prompt,
-        set_custom_system_prompt,
-    )
-    from gcallm.helpers.input import open_editor
-
-    try:
-        if reset:
-            # Reset to default
-            clear_custom_system_prompt()
-            console.print()
-            console.print("[green]✓[/green] System prompt reset to default")
-            console.print()
-            return
-
-        # Get current custom prompt or default
-        current_prompt = get_custom_system_prompt() or SYSTEM_PROMPT
-
-        # Write to temp file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tf:
-            tf.write(current_prompt)
-            tf.write("\n\n")
-            tf.write("# Edit the system prompt above\n")
-            tf.write("# Lines starting with # will be ignored\n")
-            tf.write("# Save and quit to update the prompt\n")
-            temp_path = tf.name
-
-        try:
-            # Open editor
-            console.print()
-            console.print("[cyan]Opening editor to customize system prompt...[/cyan]")
-            console.print()
-
-            new_prompt = open_editor(temp_path)
-
-            if not new_prompt or new_prompt.strip() == "":
-                console.print("[yellow]No changes made[/yellow]")
-                return
-
-            # Save custom prompt
-            set_custom_system_prompt(new_prompt)
-
-            console.print()
-            console.print("[green]✓[/green] Custom system prompt saved")
-            console.print()
-            console.print("[dim]gcallm will now use your custom prompt[/dim]")
-            console.print("[dim]Use 'gcallm prompt --reset' to revert to default[/dim]")
-            console.print()
-
-        finally:
-            # Clean up temp file
-            import os
-
-            if os.path.exists(temp_path):
-                os.unlink(temp_path)
-
-    except typer.Abort:
-        console.print("\n[yellow]Cancelled[/yellow]")
-        raise typer.Exit(code=130)
-    except Exception as e:
-        format_error(str(e), console)
         raise typer.Exit(code=1)
 
 
