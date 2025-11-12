@@ -28,7 +28,7 @@ npx @cocal/google-calendar-mcp auth
 
 ### Testing
 ```bash
-# Run all tests (51 tests total)
+# Run all tests (145 tests total)
 make test
 
 # Run specific test file
@@ -79,27 +79,33 @@ make clean     # Remove build artifacts
      2. `~/.config/gcallm/gcp-oauth.keys.json`
      3. `~/gcp-oauth.keys.json`
 
-4. **gcallm/helpers/input.py** - Input handling
+4. **gcallm/helpers/input.py** - Input handling (consolidated from 3 previous files)
    - Priority order: direct input → **screenshots** → stdin → clipboard → editor
    - Editor mode opens `$EDITOR` (default: vim) when no input provided
+   - Composable handlers: each returns None when not applicable
 
-5. **gcallm/screenshot.py** - Screenshot discovery (NEW)
+5. **gcallm/helpers/screenshot.py** - Screenshot discovery
    - `find_recent_screenshots(count, directory)` discovers latest N screenshots from ~/Desktop
    - Sorts by modification time (newest first)
    - Returns absolute paths for Claude to read via Read tool
    - No user configuration required
 
 6. **gcallm/formatter.py** - Rich output formatting
-   - Parses Claude's event summaries and formats with Rich components
-   - Handles error messages and warnings
-   - Displays full URLs without truncation (clickable links)
+   - `parse_xml_events()` parses Claude's XML-formatted event responses
+   - Handles URL escaping (& → &amp;) for Google Calendar URLs
+   - Displays events with Rich Panel/Table components
+   - `display_conflict_report()` shows interactive mode conflicts
+
+7. **gcallm/conflicts.py** - Interactive mode conflict detection
+   - `ConflictReport` dataclass with `is_important` logic
+   - Two-phase workflow: analysis → user decision → creation
 
 ### Input Flow
 ```
 User Input (text / screenshot / clipboard / stdin / editor)
     ↓
 CLI (gcallm/cli.py)
-    ├─ Screenshot discovery (gcallm/screenshot.py) if --screenshot/-s
+    ├─ Screenshot discovery (gcallm/helpers/screenshot.py) if --screenshot/-s
     └─ Input Handler (helpers/input.py)
     ↓
 Agent (gcallm/agent.py)
@@ -128,7 +134,7 @@ The screenshot feature was implemented following strict TDD (Red-Green-Refactor)
    - No user configuration files
    - Automatically granted when `screenshot_paths` provided
 
-2. **Discovery Pattern**: `find_recent_screenshots()` in `gcallm/screenshot.py`
+2. **Discovery Pattern**: `find_recent_screenshots()` in `gcallm/helpers/screenshot.py`
    - Searches `~/Desktop` for `Screenshot*.png` files
    - Sorts by modification time (newest first)
    - Returns absolute paths for Claude's Read tool
@@ -138,9 +144,54 @@ The screenshot feature was implemented following strict TDD (Red-Green-Refactor)
    - **Agent**: Receives `screenshot_paths`, configures `add_dirs`, includes paths in prompt
    - **System Prompt**: Instructions for Claude to analyze screenshots for event details
 
-4. **Testing Strategy** (11 new tests, all passing):
+4. **Testing Strategy** (11 tests):
    - `test_screenshot.py`: Discovery, CLI integration, agent integration
    - Mocking pattern: Patch `gcallm.cli.create_events` (where imported, not where defined)
+
+### XML Event Format
+
+Claude returns events in XML format for reliable parsing:
+
+```xml
+<events>
+  <event>
+    <title>Event Title</title>
+    <when>Nov 12, 2024 at 4:30 PM - 6:00 PM</when>
+    <link>https://www.google.com/calendar/event?eid=...</link>
+  </event>
+</events>
+```
+
+**Implementation details:**
+- `parse_xml_events()` uses ElementTree with URL escaping
+- Handles unescaped `&` in Google Calendar URLs by replacing in `<link>` tags only
+- Falls back to markdown display if XML parsing fails
+
+### Interactive Mode: Two-Phase Workflow
+
+When `--interactive` / `-i` flag is used:
+
+1. **Phase 1 - Analysis**:
+   - `process_events_interactive()` calls Claude to analyze events
+   - Claude checks calendar for conflicts
+   - Returns `ConflictReport` with `is_important` flag
+
+2. **Conflict Detection**:
+   - **Important**: 2+ overlapping events, all-day events, >50% overlap
+   - **Minor**: Single event, <50% overlap, tentative events
+
+3. **User Decision**:
+   - Important conflicts → prompt user to confirm
+   - Minor/no conflicts → proceed automatically
+
+4. **Phase 2 - Creation**:
+   - If user confirms, call Claude again to create events
+   - Display formatted results
+
+**Key files:**
+- `gcallm/conflicts.py`: `ConflictReport` dataclass, XML parsing
+- `gcallm/agent.py`: `process_events_interactive()`, `ask_question()`
+- `gcallm/formatter.py`: `display_conflict_report()`
 
 ## Testing Philosophy
 
@@ -148,14 +199,16 @@ This project follows TDD (Test-Driven Development). All features have comprehens
 - **CLI tests** (test_cli.py) - Command routing, input handling, Rich formatting
 - **Agent tests** (test_agent.py) - Claude SDK integration, config loading
 - **Formatter tests** (test_formatter.py) - Rich output formatting, event parsing, URL display
-- **Input tests** (test_input.py) - Stdin, clipboard, editor modes
+- **Input tests** (test_input_sources.py) - Stdin, clipboard, editor modes
 - **Screenshot tests** (test_screenshot.py) - Screenshot discovery, CLI flags, agent integration
+- **Interactive tests** (test_interactive.py) - Conflict detection, two-phase workflow
+- **XML parsing tests** (test_xml_event_parsing.py) - XML parsing with URL escaping
 
 When adding new features:
 1. Write tests first (RED phase)
 2. Implement the feature (GREEN phase)
 3. Refactor and cleanup (REFACTOR phase)
-4. Ensure all tests pass: `make test` (51/51 tests passing)
+4. Ensure all tests pass: `make test` (145/145 tests passing)
 
 ## Important Notes
 
@@ -170,6 +223,21 @@ Users can customize how Claude interprets events via `gcallm prompt`. The custom
 
 ### Default Command Behavior
 The CLI intercepts unknown commands and treats them as event descriptions. This means `gcallm "Meeting tomorrow"` works without needing `gcallm add "Meeting tomorrow"`.
+
+### Composable Input Handler Pattern
+Input handlers in `gcallm/helpers/input.py` follow a consistent pattern:
+- Each handler takes its specific parameters plus `console: Console`
+- Returns `None` if not applicable, allowing next handler to try
+- This enables clean priority ordering without nested conditionals
+
+Example:
+```python
+def handle_screenshot_input(screenshots: Optional[int], console: Console) -> Optional[list[str]]:
+    if screenshots is None:
+        return None
+    # ... implementation
+    return screenshot_paths
+```
 
 ## Dependencies
 
@@ -193,4 +261,29 @@ Google OAuth tokens expire weekly when the app is in test mode. Re-authenticate:
 ```bash
 npx @cocal/google-calendar-mcp auth
 ```
-- Make install after adding a feature and having tested it.
+
+## Recent Improvements
+
+### Consolidated Input Handling
+The input handling was refactored from 3 separate files into a single organized module (`gcallm/helpers/input.py`) with clear sections:
+1. InputContext dataclass
+2. Low-level functions (stdin, clipboard, editor)
+3. Composable handlers (screenshot, direct, stdin, clipboard, editor)
+4. Legacy compatibility function
+
+### Simplified Screenshot Flags
+- Single screenshot: `-s` flag (boolean)
+- Multiple screenshots: `--screenshots N` flag (integer)
+- Combined in CLI: `screenshot_count = 1 if screenshot else screenshots`
+- Design decision made due to typer/click limitations with optional flag values
+
+### Structured XML Event Display
+- Replaced fragile markdown parsing with robust XML parsing
+- System prompt updated to request XML format
+- URL escaping handles `&` in Google Calendar URLs
+- Falls back to markdown if XML parsing fails
+
+### General-Purpose Ask Command
+- New `gcallm ask "question"` command for calendar questions
+- Replaced redundant `status` command
+- Simplified `calendars` command to use ask internally

@@ -42,6 +42,32 @@ gcallm = "gcallm.cli:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatchling.build.targets.sdist]
+exclude = [
+    ".annotations",
+    ".claude",
+    "TODO",
+    ".git",
+    ".github",
+    "dist",
+    "build",
+    "*.egg-info",
+    "tests",
+    "Makefile",
+    "pytest.ini",
+    "ruff.toml",
+    "uv.lock",
+    "MANIFEST.in",
+]
+
+[tool.hatchling.build.targets.wheel]
+exclude = [
+    ".annotations",
+    ".claude",
+    "TODO",
+    "tests",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=7.0.0",
