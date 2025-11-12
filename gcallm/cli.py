@@ -15,8 +15,8 @@ from gcallm.formatter import (
     format_event_response,
     format_no_input_warning,
 )
-from gcallm.helpers.input_context import InputContext
-from gcallm.helpers.input_sources import (
+from gcallm.helpers.input import (
+    InputContext,
     handle_clipboard_input,
     handle_direct_input,
     handle_editor_input,

@@ -1,0 +1,235 @@
+Claude’s PlaVV
+Replace status with General-Purpose ask Command
+Current Problem
+status (cli.py:289-314) and calendars (cli.py:317-342) are nearly identical:
+Both run hardcoded queries to Claude agent
+Only difference: header text and slightly different prompt wording
+status: "List my available calendars"
+calendars: "Show me all my calendars with their names and IDs"
+Proposed Solution
+1. Create New ask Command
+@app.command()
+def ask(
+    question: str = typer.Argument(..., help="Question to ask about your calendar"),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Model to use (haiku, sonnet, opus)"),
+) -> None:
+    """Ask Claude questions about your Google Calendar.
+    
+    EXAMPLES:
+      $ gcallm ask "What meetings do I have tomorrow?"
+      $ gcallm ask "List my calendars"
+      $ gcallm ask "Do I have any conflicts this week?"
+      $ gcallm ask "Show events on Friday" -m sonnet
+    """
+Features:
+Accepts arbitrary natural language queries
+Optional model override (defaults to config model or haiku)
+No hardcoded prompts - user controls the question
+Composable with other tools via stdin/stdout
+2. Command Lifecycle Changes
+Remove:
+status command (redundant, confusing name)
+Keep & Simplify:
+calendars → Keep as convenience alias that internally calls ask("List my calendars")
+Users expect gcallm calendars to "just work"
+Common operation deserves dedicated command
+Keep As-Is:
+verify → Different purpose (connectivity test, not query)
+3. Update KNOWN_COMMANDS
+KNOWN_COMMANDS = [
+    "verify",
+    "ask",         # NEW
+    "calendars",   # Keep
+    # "status",   # REMOVE
+    "add",
+    "setup",
+    "config",
+    "prompt",
+]
+4. Migration Path
+Option A: Hard break (recommended for pre-1.0)
+Remove status entirely
+Update docs/README
+Option B: Deprecation warning
+Keep status but print warning: "⚠️ 'status' is deprecated, use 'ask' instead"
+Remove in next major version
+Benefits
+Flexibility: Users can ask ANY question, not just pre-defined ones
+Composability: gcallm ask "..." | jq for scripting
+Simplicity: One general command instead of multiple similar ones
+Clarity: "ask" is more intuitive than "status" for queries
+Maintainability: No need to add new commands for each query type
+Implementation Steps
+Create ask command function (15 lines)
+Simplify calendars to call internal ask logic
+Remove status command
+Update KNOWN_COMMANDS list
+Update tests (remove status tests, add ask tests)
+Update README/docs with new examples
+Stayed in plan mode
+I want a hard break. Also, do this too: Remove the deprecated prompt command:
+  @app.command()
+  def prompt(
+      reset: bool = typer.Option(
+          False, "--reset", "-r", help="Reset to default system prompt"
+      ),
+  ) -> None:
+      """[deprecated] Use 'gcallm config prompt' instead.
+
+      [bold cyan]EXAMPLES[/bold cyan]:
+        [dim]$[/dim] gcallm prompt          [dim]# Edit custom prompt in editor[/dim]
+        [dim]$[/dim] gcallm prompt --reset  [dim]# Reset to default prompt[/dim]
+      """
+      import tempfile
+
+      from gcallm.agent import SYSTEM_PROMPT
+      from gcallm.config import (
+          clear_custom_system_prompt,
+          get_custom_system_prompt,
+          set_custom_system_prompt,
+      ). TDD.
+, since the task is similar.
+🇪🇸 Quiero una ruptura dura. También haz esto: Elimina el comando obsoleto "prompt". TDD.
+Claude’s Plan
+TDD Plan: Replace status with ask, Remove Deprecated prompt
+Phase 1: Write Tests First (RED)
+1.1 Add ask Command Tests
+File: tests/test_cli.py Add test cases:
+def test_ask_command_with_question():
+    """Test ask command with natural language question"""
+    # Mock CalendarAgent.run() to return sample response
+    # Assert it's called with the user's question
+    # Verify output is printed
+
+def test_ask_command_with_model_override():
+    """Test ask command respects --model flag"""
+    # Verify CalendarAgent is initialized with specified model
+
+def test_ask_command_error_handling():
+    """Test ask command handles errors gracefully"""
+    # Mock CalendarAgent to raise exception
+    # Verify error formatting and exit code
+1.2 Update Removal Tests
+File: tests/test_cli.py
+def test_status_command_removed():
+    """Verify status command no longer exists"""
+    # Assert "status" not in KNOWN_COMMANDS
+    # Assert calling 'status' triggers default command behavior
+
+def test_prompt_command_removed():
+    """Verify deprecated prompt command removed"""
+    # Assert "prompt" not in KNOWN_COMMANDS
+1.3 Verify calendars Still Works
+File: tests/test_cli.py
+def test_calendars_command_still_exists():
+    """Verify calendars convenience command still works"""
+    # Mock CalendarAgent.run()
+    # Verify calendars command calls agent with calendar-specific query
+Run tests → Expect failures (RED phase)
+Phase 2: Implementation (GREEN)
+2.1 Create ask Command
+File: gcallm/cli.py Add after verify command (~line 287):
+@app.command()
+def ask(
+    question: str = typer.Argument(..., help="Question about your calendar"),
+    model: Optional[str] = typer.Option(
+        None, "--model", "-m", help="Model (haiku, sonnet, opus)"
+    ),
+) -> None:
+    """Ask Claude questions about your Google Calendar.
+    
+    [bold cyan]EXAMPLES[/bold cyan]:
+      [dim]$[/dim] gcallm ask "What meetings do I have tomorrow?"
+      [dim]$[/dim] gcallm ask "Do I have conflicts this week?"
+      [dim]$[/dim] gcallm ask "Show Friday's events" -m sonnet
+    """
+    from gcallm.agent import CalendarAgent
+    from gcallm.config import get_model
+    
+    try:
+        # Use provided model or fall back to config
+        agent_model = model or get_model()
+        
+        agent = CalendarAgent(console=console, model=agent_model)
+        
+        with console.status("[bold green]Processing question...", spinner="dots"):
+            result = agent.run(question)
+        
+        console.print(result)
+        console.print()
+        
+    except Exception as e:
+        format_error(str(e), console)
+        raise typer.Exit(code=1)
+2.2 Remove status Command
+File: gcallm/cli.py
+Delete lines 289-314 (status command function)
+2.3 Remove prompt Command
+File: gcallm/cli.py
+Delete lines 556-633 (entire prompt command function)
+2.4 Update KNOWN_COMMANDS
+File: gcallm/cli.py (line 29)
+KNOWN_COMMANDS = [
+    "verify",
+    "ask",        # NEW
+    "calendars",
+    "add",
+    "setup",
+    "config",
+    # "status" - REMOVED
+    # "prompt" - REMOVED
+]
+2.5 Keep calendars as Convenience Alias
+File: gcallm/cli.py (simplify existing function)
+@app.command()
+def calendars() -> None:
+    """List available calendars (convenience alias for 'ask').
+    
+    [bold cyan]EXAMPLE[/bold cyan]:
+      [dim]$[/dim] gcallm calendars
+    """
+    try:
+        from gcallm.agent import CalendarAgent
+        
+        agent = CalendarAgent(console=console, model="haiku")
+        
+        with console.status("[bold green]Fetching calendars...", spinner="dots"):
+            result = agent.run("List all my calendars with names and IDs")
+        
+        console.print(result)
+        console.print()
+        
+    except Exception as e:
+        format_error(str(e), console)
+        raise typer.Exit(code=1)
+Run tests → Expect all tests to pass (GREEN phase)
+Phase 3: Refactor & Cleanup
+3.1 DRY Improvement (Optional)
+Extract common agent execution pattern:
+def _run_agent_query(query: str, model: str = "haiku", status_msg: str = "Processing..."):
+    """Internal helper for running agent queries"""
+    agent = CalendarAgent(console=console, model=model)
+    with console.status(f"[bold green]{status_msg}", spinner="dots"):
+        result = agent.run(query)
+    console.print(result)
+    console.print()
+Then simplify ask, calendars, and verify to use this helper.
+3.2 Update Documentation
+Update README examples to use ask instead of status
+Remove any references to status or prompt commands
+Expected Test Results
+Before implementation:
+3-4 new tests fail (RED)
+Existing tests may fail due to missing commands
+After implementation:
+All new tests pass (GREEN)
+All existing tests pass
+Line count reduced by ~80 lines (removed 2 commands)
+File Changes Summary
+Modified:
+gcallm/cli.py - Add ask, remove status/prompt, update KNOWN_COMMANDS
+tests/test_cli.py - Add ask tests, remove status/prompt tests
+No changes needed:
+gcallm/agent.py (no interface changes)
+gcallm/config.py (already has model getters)
+gcallm/formatter.py (reuse existing formatters)

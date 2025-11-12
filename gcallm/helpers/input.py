@@ -1,11 +1,55 @@
-"""Input handling for gcallm - stdin, clipboard, editor."""
+"""Consolidated input handling for gcallm.
+
+This module provides:
+1. InputContext dataclass - container for all input sources
+2. Low-level input functions - stdin, clipboard, editor
+3. Composable input handlers - screenshot, direct, stdin, clipboard, editor
+4. Legacy get_input function - for backward compatibility
+"""
 
 import os
 import subprocess
 import sys
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+
+from rich.console import Console
+
+from gcallm.formatter import format_error
+from gcallm.helpers.screenshot import find_recent_screenshots
+
+
+# ============================================================================
+# InputContext - Container for all input sources
+# ============================================================================
+
+
+@dataclass
+class InputContext:
+    """Container for all input sources.
+
+    Attributes:
+        text_input: Text description of event(s)
+        screenshot_paths: List of screenshot file paths to analyze
+    """
+
+    text_input: Optional[str] = None
+    screenshot_paths: Optional[list[str]] = None
+
+    def has_any_input(self) -> bool:
+        """Check if context has any input (text or screenshots).
+
+        Returns:
+            True if either text_input or screenshot_paths is non-empty
+        """
+        return bool(self.text_input or self.screenshot_paths)
+
+
+# ============================================================================
+# Low-level input functions
+# ============================================================================
 
 
 def get_from_stdin() -> Optional[str]:
@@ -98,12 +142,105 @@ def open_editor(file_path: Optional[str] = None) -> Optional[str]:
 def get_from_editor() -> Optional[str]:
     """Open default editor and return content.
 
-    Uses $EDITOR environment variable, falls back to vim.
+    Uses $EDITOR environment variable, falls back to nano.
 
     Returns:
         Content from editor, or None if user didn't write anything or cancelled
     """
     return open_editor()
+
+
+# ============================================================================
+# Composable input handlers
+# ============================================================================
+
+
+def handle_screenshot_input(
+    screenshot: bool,
+    screenshots: Optional[int],
+    console: Optional[Console] = None,
+) -> Optional[list[str]]:
+    """Handle screenshot input source.
+
+    Args:
+        screenshot: Single screenshot flag
+        screenshots: Multiple screenshots count
+        console: Rich console for output
+
+    Returns:
+        List of screenshot paths if applicable, None otherwise
+    """
+    # Not using screenshot input
+    if not screenshot and screenshots is None:
+        return None
+
+    # Determine count
+    count = screenshots if screenshots is not None else 1
+
+    # Find screenshots
+    screenshot_paths = find_recent_screenshots(count=count, directory=None)
+
+    if not screenshot_paths:
+        console = console or Console()
+        format_error(
+            "No screenshots found in ~/Desktop. "
+            "Take a screenshot (⌘+Shift+4) and try again.",
+            console,
+        )
+        return None
+
+    return screenshot_paths
+
+
+def handle_direct_input(event_description: Optional[str]) -> Optional[str]:
+    """Handle direct text input.
+
+    Args:
+        event_description: Text input from command line
+
+    Returns:
+        Text if provided, None otherwise
+    """
+    if event_description and event_description.strip():
+        return event_description
+    return None
+
+
+def handle_stdin_input() -> Optional[str]:
+    """Handle stdin input source.
+
+    Returns:
+        Text from stdin if available, None otherwise
+    """
+    return get_from_stdin()
+
+
+def handle_clipboard_input(clipboard: bool) -> Optional[str]:
+    """Handle clipboard input source.
+
+    Args:
+        clipboard: Whether to use clipboard
+
+    Returns:
+        Clipboard content if flag is set and content exists, None otherwise
+    """
+    if not clipboard:
+        return None
+    return get_from_clipboard()
+
+
+def handle_editor_input() -> Optional[str]:
+    """Handle editor input source.
+
+    Returns:
+        Content from editor if provided, None otherwise
+    """
+    return open_editor()
+
+
+# ============================================================================
+# Legacy function for backward compatibility
+# ============================================================================
 
 
 def get_input(

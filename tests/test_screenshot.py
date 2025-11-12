@@ -183,7 +183,7 @@ class TestScreenshotDiscovery:
 class TestCLIIntegration:
     """Tests for CLI screenshot flags."""
 
-    @patch("gcallm.helpers.input_sources.find_recent_screenshots")
+    @patch("gcallm.helpers.input.find_recent_screenshots")
     @patch(
         "gcallm.cli.create_events"
     )  # Patch where it's imported, not where it's defined
@@ -206,7 +206,7 @@ class TestCLIIntegration:
         # Should pass screenshot_paths to create_events
         assert mock_create_events.called
 
-    @patch("gcallm.helpers.input_sources.find_recent_screenshots")
+    @patch("gcallm.helpers.input.find_recent_screenshots")
     @patch("gcallm.cli.create_events")  # Patch where it's imported
     def test_add_with_screenshot_short_flag(
         self, mock_create_events, mock_find_screenshots
@@ -229,7 +229,7 @@ class TestCLIIntegration:
             mock_create_events.called
         ), f"create_events was not called. Exit code: {result.exit_code}"
 
-    @patch("gcallm.helpers.input_sources.find_recent_screenshots")
+    @patch("gcallm.helpers.input.find_recent_screenshots")
     @patch("gcallm.cli.create_events")  # Patch where it's imported
     def test_add_with_multiple_screenshots(
         self, mock_create_events, mock_find_screenshots
@@ -256,7 +256,7 @@ class TestCLIIntegration:
         if mock_create_events.call_args:
             assert mock_create_events.call_args[1]["screenshot_paths"] is not None
 
-    @patch("gcallm.helpers.input_sources.find_recent_screenshots")
+    @patch("gcallm.helpers.input.find_recent_screenshots")
     @patch("gcallm.cli.create_events")  # Patch where it's imported
     def test_screenshot_plus_text_input(
         self, mock_create_events, mock_find_screenshots

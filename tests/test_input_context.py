@@ -1,7 +1,7 @@
 """Tests for InputContext dataclass."""
 
 
-from gcallm.helpers.input_context import InputContext
+from gcallm.helpers.input import InputContext
 
 
 class TestInputContext:

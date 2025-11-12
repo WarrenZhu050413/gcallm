@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from rich.console import Console
 
-from gcallm.helpers.input_sources import (
+from gcallm.helpers.input import (
     handle_clipboard_input,
     handle_direct_input,
     handle_editor_input,
@@ -18,7 +18,7 @@ class TestScreenshotInputHandler:
 
     def test_single_screenshot_flag_returns_one_path(self):
         """Single screenshot flag should return latest screenshot."""
-        with patch("gcallm.helpers.input_sources.find_recent_screenshots") as mock_find:
+        with patch("gcallm.helpers.input.find_recent_screenshots") as mock_find:
             mock_find.return_value = ["/Desktop/Screenshot1.png"]
             result = handle_screenshot_input(screenshot=True, screenshots=None)
             assert result == ["/Desktop/Screenshot1.png"]
@@ -26,7 +26,7 @@ class TestScreenshotInputHandler:
 
     def test_multiple_screenshots_flag_returns_n_paths(self):
         """Multiple screenshots flag should return N latest screenshots."""
-        with patch("gcallm.helpers.input_sources.find_recent_screenshots") as mock_find:
+        with patch("gcallm.helpers.input.find_recent_screenshots") as mock_find:
             mock_find.return_value = [
                 "/Desktop/Screenshot1.png",
                 "/Desktop/Screenshot2.png",
@@ -46,8 +46,8 @@ class TestScreenshotInputHandler:
     def test_no_screenshots_found_displays_error(self):
         """Should display error and return None if no screenshots found."""
         console = Console()
-        with patch("gcallm.helpers.input_sources.find_recent_screenshots") as mock_find:
-            with patch("gcallm.helpers.input_sources.format_error") as mock_error:
+        with patch("gcallm.helpers.input.find_recent_screenshots") as mock_find:
+            with patch("gcallm.helpers.input.format_error") as mock_error:
                 mock_find.return_value = []
                 result = handle_screenshot_input(
                     screenshot=True, screenshots=None, console=console
@@ -80,14 +80,14 @@ class TestStdinInputHandler:
 
     def test_stdin_with_data_returns_text(self):
         """Stdin with data should return text."""
-        with patch("gcallm.helpers.input_sources.get_from_stdin") as mock_stdin:
+        with patch("gcallm.helpers.input.get_from_stdin") as mock_stdin:
             mock_stdin.return_value = "Event from stdin"
             result = handle_stdin_input()
             assert result == "Event from stdin"
 
     def test_stdin_without_data_returns_none(self):
         """Stdin without data should return None."""
-        with patch("gcallm.helpers.input_sources.get_from_stdin") as mock_stdin:
+        with patch("gcallm.helpers.input.get_from_stdin") as mock_stdin:
             mock_stdin.return_value = None
             result = handle_stdin_input()
             assert result is None
@@ -98,7 +98,7 @@ class TestClipboardInputHandler:
 
     def test_clipboard_flag_true_returns_clipboard_content(self):
         """Clipboard flag=True should return clipboard content."""
-        with patch("gcallm.helpers.input_sources.get_from_clipboard") as mock_clip:
+        with patch("gcallm.helpers.input.get_from_clipboard") as mock_clip:
             mock_clip.return_value = "Event from clipboard"
             result = handle_clipboard_input(clipboard=True)
             assert result == "Event from clipboard"
@@ -110,7 +110,7 @@ class TestClipboardInputHandler:
 
     def test_clipboard_empty_returns_none(self):
         """Empty clipboard should return None."""
-        with patch("gcallm.helpers.input_sources.get_from_clipboard") as mock_clip:
+        with patch("gcallm.helpers.input.get_from_clipboard") as mock_clip:
             mock_clip.return_value = None
             result = handle_clipboard_input(clipboard=True)
             assert result is None
@@ -121,14 +121,14 @@ class TestEditorInputHandler:
 
     def test_editor_returns_content(self):
         """Editor should return content from temp file."""
-        with patch("gcallm.helpers.input_sources.open_editor") as mock_editor:
+        with patch("gcallm.helpers.input.open_editor") as mock_editor:
             mock_editor.return_value = "Event from editor"
             result = handle_editor_input()
             assert result == "Event from editor"
 
     def test_editor_cancelled_returns_none(self):
         """Cancelled editor should return None."""
-        with patch("gcallm.helpers.input_sources.open_editor") as mock_editor:
+        with patch("gcallm.helpers.input.open_editor") as mock_editor:
             mock_editor.return_value = None
             result = handle_editor_input()
             assert result is None
@@ -139,7 +139,7 @@ class TestInputHandlerComposition:
 
     def test_screenshot_and_direct_input_both_work(self):
         """Screenshot and direct input should be independent."""
-        with patch("gcallm.helpers.input_sources.find_recent_screenshots") as mock_find:
+        with patch("gcallm.helpers.input.find_recent_screenshots") as mock_find:
             mock_find.return_value = ["/Desktop/Screenshot1.png"]
 
             screenshots = handle_screenshot_input(screenshot=True, screenshots=None)
@@ -154,6 +154,6 @@ class TestInputHandlerComposition:
         assert handle_direct_input(None) is None
         assert handle_clipboard_input(False) is None
 
-        with patch("gcallm.helpers.input_sources.get_from_stdin") as mock_stdin:
+        with patch("gcallm.helpers.input.get_from_stdin") as mock_stdin:
             mock_stdin.return_value = None
             assert handle_stdin_input() is None

@@ -361,7 +361,7 @@ pytest tests/ --cov=gcallm --cov-report=term-missing
 ### Test-Driven Development
 
 This project follows TDD (Test-Driven Development). All features have tests:
-- **76 tests total** - 100% passing
+- **114 tests total** - 100% passing
 - **CLI tests** - Command routing, input handling, Rich formatting
 - **Agent tests** - Claude SDK integration, config loading
 - **Formatter tests** - Rich output formatting, event parsing

@@ -141,7 +141,7 @@ class TestAddCommand:
         call_args = mock_create_events.call_args
         assert "Coffee with Sarah tomorrow at 2pm" in str(call_args)
 
-    @patch("gcallm.helpers.input_sources.open_editor")
+    @patch("gcallm.helpers.input.open_editor")
     @patch("gcallm.cli.create_events")
     def test_add_without_args_opens_editor(self, mock_create_events, mock_editor):
         """Test that 'gcallm add' without args opens editor."""
@@ -154,7 +154,7 @@ class TestAddCommand:
         assert mock_editor.called
         assert mock_create_events.called
 
-    @patch("gcallm.helpers.input_sources.get_from_clipboard")
+    @patch("gcallm.helpers.input.get_from_clipboard")
     @patch("gcallm.cli.create_events")
     def test_add_with_clipboard_flag(self, mock_create_events, mock_clipboard):
         """Test that 'gcallm add --clipboard' reads from clipboard."""
