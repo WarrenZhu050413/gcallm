@@ -46,7 +46,7 @@ build: clean
 publish: build
 	@echo "🚀 Publishing to PyPI..."
 	@echo "⚠️  Make sure you have PyPI credentials configured!"
-	twine upload dist/*
+	uv publish
 	@echo "✅ Published to PyPI!"
 
 clean:
