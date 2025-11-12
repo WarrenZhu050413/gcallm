@@ -188,7 +188,7 @@ class TestCLIIntegration:
         "gcallm.cli.create_events"
     )  # Patch where it's imported, not where it's defined
     def test_add_with_screenshot_flag(self, mock_create_events, mock_find_screenshots):
-        """Test: gcallm add --screenshot"""
+        """Test: gcallm add -s"""
         from typer.testing import CliRunner
 
         from gcallm.cli import app
@@ -197,7 +197,7 @@ class TestCLIIntegration:
         mock_find_screenshots.return_value = ["/Users/test/Desktop/Screenshot.png"]
         mock_create_events.return_value = "Event created"
 
-        _result = runner.invoke(app, ["add", "--screenshot"])
+        _result = runner.invoke(app, ["add", "-s"])
 
         # Should call find_recent_screenshots with count=1
         assert mock_find_screenshots.called
@@ -211,7 +211,7 @@ class TestCLIIntegration:
     def test_add_with_screenshot_short_flag(
         self, mock_create_events, mock_find_screenshots
     ):
-        """Test: gcallm add -s (tested with --screenshot to avoid pytest conflict)"""
+        """Test: gcallm add -s (short form)"""
         from typer.testing import CliRunner
 
         from gcallm.cli import app
@@ -220,9 +220,8 @@ class TestCLIIntegration:
         mock_find_screenshots.return_value = ["/Users/test/Desktop/Screenshot.png"]
         mock_create_events.return_value = "Event created"
 
-        # Note: -s conflicts with pytest's -s flag, so we test --screenshot here
-        # The -s short form works in actual CLI usage
-        result = runner.invoke(app, ["add", "--screenshot"])
+        # Note: -s works fine in pytest with CliRunner
+        result = runner.invoke(app, ["add", "-s"])
 
         assert mock_find_screenshots.called, "find_recent_screenshots was not called"
         assert (
@@ -261,7 +260,7 @@ class TestCLIIntegration:
     def test_screenshot_plus_text_input(
         self, mock_create_events, mock_find_screenshots
     ):
-        """Test: gcallm add --screenshot "Extra context" """
+        """Test: gcallm add -s "Extra context" """
         from typer.testing import CliRunner
 
         from gcallm.cli import app
@@ -270,7 +269,7 @@ class TestCLIIntegration:
         mock_find_screenshots.return_value = ["/Users/test/Desktop/Screenshot.png"]
         mock_create_events.return_value = "Event created"
 
-        _result = runner.invoke(app, ["add", "--screenshot", "Team meeting notes"])
+        _result = runner.invoke(app, ["add", "-s", "Team meeting notes"])
 
         # Should pass both screenshot and text
         assert mock_find_screenshots.called

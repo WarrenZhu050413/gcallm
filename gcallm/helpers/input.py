@@ -156,29 +156,24 @@ def get_from_editor() -> Optional[str]:
 
 
 def handle_screenshot_input(
-    screenshot: bool,
     screenshots: Optional[int],
     console: Optional[Console] = None,
 ) -> Optional[list[str]]:
     """Handle screenshot input source.
 
     Args:
-        screenshot: Single screenshot flag
-        screenshots: Multiple screenshots count
+        screenshots: Number of screenshots to use (None = don't use screenshots)
         console: Rich console for output
 
     Returns:
         List of screenshot paths if applicable, None otherwise
     """
     # Not using screenshot input
-    if not screenshot and screenshots is None:
+    if screenshots is None:
         return None
 
-    # Determine count
-    count = screenshots if screenshots is not None else 1
-
     # Find screenshots
-    screenshot_paths = find_recent_screenshots(count=count, directory=None)
+    screenshot_paths = find_recent_screenshots(count=screenshots, directory=None)
 
     if not screenshot_paths:
         console = console or Console()

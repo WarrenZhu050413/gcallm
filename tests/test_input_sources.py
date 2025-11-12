@@ -20,7 +20,7 @@ class TestScreenshotInputHandler:
         """Single screenshot flag should return latest screenshot."""
         with patch("gcallm.helpers.input.find_recent_screenshots") as mock_find:
             mock_find.return_value = ["/Desktop/Screenshot1.png"]
-            result = handle_screenshot_input(screenshot=True, screenshots=None)
+            result = handle_screenshot_input(screenshots=1)
             assert result == ["/Desktop/Screenshot1.png"]
             mock_find.assert_called_once_with(count=1, directory=None)
 
@@ -31,7 +31,7 @@ class TestScreenshotInputHandler:
                 "/Desktop/Screenshot1.png",
                 "/Desktop/Screenshot2.png",
             ]
-            result = handle_screenshot_input(screenshot=False, screenshots=3)
+            result = handle_screenshot_input(screenshots=3)
             assert result == [
                 "/Desktop/Screenshot1.png",
                 "/Desktop/Screenshot2.png",
@@ -40,7 +40,7 @@ class TestScreenshotInputHandler:
 
     def test_no_screenshot_flags_returns_none(self):
         """No screenshot flags should return None."""
-        result = handle_screenshot_input(screenshot=False, screenshots=None)
+        result = handle_screenshot_input(screenshots=None)
         assert result is None
 
     def test_no_screenshots_found_displays_error(self):
@@ -49,9 +49,7 @@ class TestScreenshotInputHandler:
         with patch("gcallm.helpers.input.find_recent_screenshots") as mock_find:
             with patch("gcallm.helpers.input.format_error") as mock_error:
                 mock_find.return_value = []
-                result = handle_screenshot_input(
-                    screenshot=True, screenshots=None, console=console
-                )
+                result = handle_screenshot_input(screenshots=1, console=console)
                 assert result is None
                 mock_error.assert_called_once()
 
@@ -142,7 +140,7 @@ class TestInputHandlerComposition:
         with patch("gcallm.helpers.input.find_recent_screenshots") as mock_find:
             mock_find.return_value = ["/Desktop/Screenshot1.png"]
 
-            screenshots = handle_screenshot_input(screenshot=True, screenshots=None)
+            screenshots = handle_screenshot_input(screenshots=1)
             text = handle_direct_input("Meeting notes")
 
             assert screenshots == ["/Desktop/Screenshot1.png"]
@@ -150,7 +148,7 @@ class TestInputHandlerComposition:
 
     def test_handlers_return_none_when_not_applicable(self):
         """All handlers should return None when not applicable."""
-        assert handle_screenshot_input(False, None) is None
+        assert handle_screenshot_input(screenshots=None) is None
         assert handle_direct_input(None) is None
         assert handle_clipboard_input(False) is None
 

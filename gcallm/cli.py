@@ -125,12 +125,13 @@ def add_command(
     ),
     screenshot: bool = typer.Option(
         False,
-        "--screenshot",
         "-s",
-        help="Use most recent screenshot from Desktop for event details",
+        help="Use latest screenshot from Desktop",
     ),
     screenshots: Optional[int] = typer.Option(
-        None, "--screenshots", help="Use latest N screenshots from Desktop"
+        None,
+        "--screenshots",
+        help="Use N latest screenshots from Desktop",
     ),
     interactive: bool = typer.Option(
         False,
@@ -151,8 +152,7 @@ def add_command(
       [dim]$[/dim] gcallm "Coffee with Sarah tomorrow at 2pm"
       [dim]$[/dim] gcallm "https://www.aiandsoul.org/..."
       [dim]$[/dim] gcallm --clipboard
-      [dim]$[/dim] gcallm --screenshot    # Use latest screenshot
-      [dim]$[/dim] gcallm -s              # Short form
+      [dim]$[/dim] gcallm -s              # Use latest screenshot
       [dim]$[/dim] gcallm --screenshots 3 # Use latest 3 screenshots
       [dim]$[/dim] gcallm --interactive   # Check for conflicts first
       [dim]$[/dim] gcallm -i "Meeting tomorrow" # Interactive mode
@@ -165,8 +165,10 @@ def add_command(
         context = InputContext()
 
         # Screenshots (independent handler)
+        # Combine -s (single) and --screenshots (multiple) flags
+        screenshot_count = 1 if screenshot else screenshots
         context.screenshot_paths = handle_screenshot_input(
-            screenshot=screenshot, screenshots=screenshots, console=console
+            screenshots=screenshot_count, console=console
         )
 
         # Text input (priority waterfall: direct → stdin → clipboard)
