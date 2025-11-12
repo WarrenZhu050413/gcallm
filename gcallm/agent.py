@@ -51,17 +51,17 @@ When analyzing screenshots for event information:
 Calendar operations are low-stakes. Create events directly without asking for confirmation.
 
 FORMAT YOUR RESPONSE:
-After creating events, provide a summary in this format:
+After creating events, provide a summary with event details in XML format:
 
-✅ Created [N] event(s):
+<events>
+  <event>
+    <title>[Event Title]</title>
+    <when>[Date and Time - e.g., "Nov 12, 2024 at 4:30 PM - 6:00 PM"]</when>
+    <link>[Google Calendar Event URL]</link>
+  </event>
+</events>
 
-[For each event:]
-- Title
-- Date & Time
-- Location (if available)
-- Event Link
-
-Keep the summary concise and scannable.
+Include a brief message before or after the XML if helpful, but ALWAYS include the XML block with event details.
 """
 
 INTERACTIVE_SYSTEM_PROMPT = """You are a calendar assistant. The user will provide event descriptions in natural language, URLs, screenshots, or structured text.

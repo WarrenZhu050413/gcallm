@@ -1,6 +1,7 @@
 """Rich formatting for gcallm output."""
 
 import re
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Optional
 
@@ -10,6 +11,62 @@ from rich.panel import Panel
 from rich.table import Table
 
 from gcallm.conflicts import ConflictReport
+
+
+def parse_xml_events(response: str) -> list[dict[str, str]]:
+    """Parse XML-formatted event data from Claude's response.
+
+    Args:
+        response: Text response from Claude containing XML <events> block
+
+    Returns:
+        List of event dictionaries with 'title', 'when', and 'link' keys
+    """
+    events = []
+
+    try:
+        # Extract XML block from response
+        match = re.search(r'<events>.*?</events>', response, re.DOTALL)
+        if not match:
+            return []
+
+        xml_str = match.group(0)
+
+        # Fix common XML issues: unescaped & in URLs
+        # Replace & with &amp; but only in <link> tags to avoid breaking other content
+        xml_str = re.sub(
+            r'(<link>)(.*?)(</link>)',
+            lambda m: m.group(1) + m.group(2).replace('&', '&amp;') + m.group(3),
+            xml_str,
+            flags=re.DOTALL
+        )
+
+        root = ET.fromstring(xml_str)
+
+        for event_elem in root.findall('event'):
+            event = {}
+
+            title_elem = event_elem.find('title')
+            if title_elem is not None and title_elem.text:
+                event['title'] = title_elem.text.strip()
+
+            when_elem = event_elem.find('when')
+            if when_elem is not None and when_elem.text:
+                event['when'] = when_elem.text.strip()
+
+            link_elem = event_elem.find('link')
+            if link_elem is not None and link_elem.text:
+                event['link'] = link_elem.text.strip()
+
+            # Only add event if it has at least a title
+            if 'title' in event:
+                events.append(event)
+
+    except ET.ParseError:
+        # If XML parsing fails, return empty list
+        pass
+
+    return events
 
 
 def format_iso_datetime(iso_string: str) -> str:
@@ -95,143 +152,82 @@ def format_event_response(response: str, console: Console) -> None:
         response: Raw text response from Claude
         console: Rich console for output
     """
-    # Parse the response to extract structured information
-    lines = response.strip().split("\n")
+    # Parse XML events from response
+    events = parse_xml_events(response)
 
-    # Look for the success indicator
-    if "✅" in response or "Created" in response:
-        # Extract event details - look for markdown list items
-        current_event = {}
-        events = []
+    # Display events in a nice format
+    if events:
+        for event in events:
+            # Create a table for event details
+            table = Table(show_header=False, box=None, padding=(0, 1))
+            table.add_column(style="cyan bold", width=12)
+            table.add_column(style="white")
 
-        for line in lines:
-            line = line.strip()
-
-            # Skip empty lines, explanatory text
-            if not line or line.startswith("I'll") or line.startswith("Now I'll"):
-                continue
-
-            # Look for lines starting with "- **"
-            if line.startswith("- **"):
-                # This could be title, date, description, or link
-                content = line[2:].strip()  # Remove "- "
-
-                # Check if it's a labeled field (e.g., "Date & Time:")
-                if "Date & Time:" in content or "**Date & Time:**" in content:
-                    datetime_text = re.sub(
-                        r"\*\*Date & Time:\*\*|\*\*", "", content
-                    ).strip()
-                    current_event["datetime"] = datetime_text
-                elif "Description:" in content:
-                    desc_text = re.sub(
-                        r"\*\*Description:\*\*|\*\*", "", content
-                    ).strip()
-                    current_event["description"] = desc_text
-                elif "Event Link:" in content or "Link:" in content:
-                    # Extract URL
-                    url_match = re.search(
-                        r"https://www\.google\.com/calendar[^\s\)]*", content
-                    )
-                    if url_match:
-                        current_event["link"] = url_match.group(0)
-                elif "Every day" in content or "at" in content:
-                    # This is datetime information without label
-                    datetime_text = re.sub(r"\*\*", "", content).strip()
-                    current_event["datetime"] = datetime_text
-                else:
-                    # This is likely the title (first bold item without a label)
-                    title_text = re.sub(r"\*\*", "", content).strip()
-                    if title_text and not current_event.get("title"):
-                        current_event["title"] = title_text
-
-            # Also check for standalone URLs
-            elif "https://www.google.com/calendar" in line:
-                url_match = re.search(
-                    r"https://www\.google\.com/calendar[^\s\)]*", line
+            # Add title
+            if "title" in event:
+                table.add_row(
+                    "Event:", f"[bold green]{event['title']}[/bold green]"
                 )
-                if url_match:
-                    current_event["link"] = url_match.group(0)
 
-        # Add the event if we have data
-        if current_event:
-            events.append(current_event)
+            # Add date/time
+            if "when" in event:
+                table.add_row("When:", event["when"])
 
-        # Display events in a nice format
-        if events:
-            for event in events:
-                # Create a table for event details
-                table = Table(show_header=False, box=None, padding=(0, 1))
-                table.add_column(style="cyan bold", width=12)
-                table.add_column(style="white")
+            # Add link
+            if "link" in event:
+                # Display full URL (clickable)
+                table.add_row(
+                    "Link:", f"[link={event['link']}]{event['link']}[/link]"
+                )
 
-                # Add title
-                if "title" in event:
-                    table.add_row(
-                        "Event:", f"[bold green]{event['title']}[/bold green]"
+            # Display in a panel
+            console.print()
+            console.print(
+                Panel(
+                    table,
+                    title="[bold green]✅ Event Created Successfully[/bold green]",
+                    border_style="green",
+                )
+            )
+            console.print()
+
+        # Check for conflicts or notes (outside event loop)
+        if (
+            "⚠️" in response
+            or "Note:" in response
+            or "conflict" in response.lower()
+        ):
+            # Extract warning/note text
+            lines = response.strip().split("\n")
+            warning_lines = []
+            capture = False
+            for line in lines:
+                if "⚠️" in line or "Note:" in line:
+                    capture = True
+                if capture:
+                    clean_line = (
+                        line.strip()
+                        .replace("⚠️", "")
+                        .replace("**Note:**", "")
+                        .strip()
                     )
+                    if clean_line and not clean_line.startswith("✅"):
+                        warning_lines.append(clean_line)
 
-                # Add date/time
-                if "datetime" in event:
-                    table.add_row("When:", event["datetime"])
-
-                # Add description if present
-                if "description" in event:
-                    table.add_row("Details:", event["description"])
-
-                # Add link
-                if "link" in event:
-                    # Display full URL (clickable)
-                    table.add_row(
-                        "Link:", f"[link={event['link']}]{event['link']}[/link]"
-                    )
-
-                # Display in a panel
-                console.print()
+            if warning_lines:
+                warning_text = "\n".join(
+                    warning_lines[:5]
+                )  # Limit to first 5 lines
                 console.print(
                     Panel(
-                        table,
-                        title="[bold green]✅ Event Created Successfully[/bold green]",
-                        border_style="green",
+                        warning_text,
+                        title="[yellow]⚠️  Note[/yellow]",
+                        border_style="yellow",
                     )
                 )
                 console.print()
 
-            # Check for conflicts or notes
-            if (
-                "⚠️" in response
-                or "Note:" in response
-                or "conflict" in response.lower()
-            ):
-                # Extract warning/note text
-                warning_lines = []
-                capture = False
-                for line in lines:
-                    if "⚠️" in line or "Note:" in line:
-                        capture = True
-                    if capture:
-                        clean_line = (
-                            line.strip()
-                            .replace("⚠️", "")
-                            .replace("**Note:**", "")
-                            .strip()
-                        )
-                        if clean_line and not clean_line.startswith("✅"):
-                            warning_lines.append(clean_line)
-
-                if warning_lines:
-                    warning_text = "\n".join(
-                        warning_lines[:5]
-                    )  # Limit to first 5 lines
-                    console.print(
-                        Panel(
-                            warning_text,
-                            title="[yellow]⚠️  Note[/yellow]",
-                            border_style="yellow",
-                        )
-                    )
-                    console.print()
-
-            return
+        return
 
     # If we couldn't parse structured output, display as markdown
     md = Markdown(response)

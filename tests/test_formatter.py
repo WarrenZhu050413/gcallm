@@ -14,9 +14,13 @@ class TestFormatter:
         """Test formatting a single event with basic fields."""
         response = """✅ Created 1 event:
 
-- **Team Meeting**
-- **Date & Time:** Monday, November 4, 2025 at 2:00 PM - 3:00 PM (EST)
-- **Event Link:** https://www.google.com/calendar/event?eid=abc123"""
+<events>
+  <event>
+    <title>Team Meeting</title>
+    <when>Monday, November 4, 2025 at 2:00 PM - 3:00 PM (EST)</when>
+    <link>https://www.google.com/calendar/event?eid=abc123</link>
+  </event>
+</events>"""
 
         output = StringIO()
         console = Console(file=output, force_terminal=True, width=80)
@@ -54,9 +58,13 @@ class TestFormatter:
 
         response = f"""✅ Created 1 event:
 
-- **SUFRA - Arab Heritage Night**
-- **Date & Time:** Friday, November 8, 2025 at 8:30 PM - 11:00 PM (EST)
-- **Event Link:** {long_url}"""
+<events>
+  <event>
+    <title>SUFRA - Arab Heritage Night</title>
+    <when>Friday, November 8, 2025 at 8:30 PM - 11:00 PM (EST)</when>
+    <link>{long_url}</link>
+  </event>
+</events>"""
 
         output = StringIO()
         console = Console(file=output, force_terminal=True, width=120)
