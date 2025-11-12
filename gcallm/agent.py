@@ -16,6 +16,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from gcallm.config import get_custom_system_prompt, get_oauth_credentials_path
+from gcallm.conflicts import ConflictReport
 
 
 SYSTEM_PROMPT = """You are a calendar assistant. The user will provide event descriptions in natural language, URLs, screenshots, or structured text.
@@ -351,12 +352,9 @@ class CalendarAgent:
         Returns:
             Summary of created events or cancellation message
         """
-        from gcallm.conflicts import ConflictReport
-        from gcallm.interaction import (
-            ask_user_to_proceed,
-            display_conflict_report,
-            format_phase2_prompt,
-        )
+        from gcallm.formatter import display_conflict_report
+
+        # Workflow functions are now in this module (ask_user_to_proceed, format_phase2_prompt)
 
         # PHASE 1: Analyze and check for conflicts
         phase1_result = await self.process_events(
@@ -472,6 +470,69 @@ class CalendarAgent:
             return asyncio.run(
                 self.process_events(user_input, screenshot_paths=screenshot_paths)
             )
+
+
+def ask_user_to_proceed(
+    report: "ConflictReport", console: Console
+) -> tuple[bool, Optional[str]]:
+    """Ask the user whether to proceed with event creation despite conflicts.
+
+    Args:
+        report: Parsed conflict report
+        console: Rich console for output
+
+    Returns:
+        Tuple of (should_proceed, user_message)
+        - should_proceed: True if user wants to create events anyway
+        - user_message: Optional additional context from user
+    """
+    if not report.needs_user_decision:
+        # No user decision needed, auto-proceed
+        return (True, None)
+
+    console.print()
+
+    # Import here to avoid circular dependency
+    from rich.prompt import Confirm
+
+    # Ask user to confirm
+    proceed = Confirm.ask(
+        "[bold]Do you want to create this event anyway?[/bold]",
+        default=False,
+    )
+
+    if not proceed:
+        return (False, "User decided not to create event due to conflicts")
+
+    # User wants to proceed despite conflicts
+    return (True, "User confirmed: proceed with event creation despite conflicts")
+
+
+def format_phase2_prompt(
+    user_decision: str,
+    original_input: str,
+    screenshot_paths: Optional[list[str]] = None,
+) -> str:
+    """Format the Phase 2 prompt to send to Claude.
+
+    Args:
+        user_decision: The user's decision message
+        original_input: Original event description from user
+        screenshot_paths: Optional screenshot paths
+
+    Returns:
+        Formatted prompt for Phase 2
+    """
+    prompt = f"{user_decision}\n\n"
+    prompt += f"Original request: {original_input}\n"
+
+    if screenshot_paths:
+        prompt += f"\nScreenshots ({len(screenshot_paths)}):\n"
+        for path in screenshot_paths:
+            prompt += f"- {path}\n"
+
+    prompt += "\nPlease proceed with creating the event(s) now."
+    return prompt
 
 
 def create_events(

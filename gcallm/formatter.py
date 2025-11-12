@@ -9,6 +9,8 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 
+from gcallm.conflicts import ConflictReport
+
 
 def format_iso_datetime(iso_string: str) -> str:
     """Format ISO 8601 datetime to human-readable string.
@@ -267,6 +269,36 @@ def format_no_input_warning(console: Optional[Console] = None) -> None:
     console.print("  [cyan]pbpaste | gcallm[/cyan]                    # From stdin")
     console.print("  [cyan]gcallm[/cyan]                              # Open editor")
     console.print()
+
+
+def display_conflict_report(report: ConflictReport, console: Console) -> None:
+    """Display a nicely formatted conflict report to the user.
+
+    Args:
+        report: Parsed conflict report
+        console: Rich console for output
+    """
+    # Display the full response as markdown in a panel
+    md = Markdown(report.phase1_response)
+
+    if report.is_important:
+        console.print()
+        console.print(
+            Panel(
+                md,
+                title="[yellow]⚠️  Scheduling Conflicts Detected[/yellow]",
+                border_style="yellow",
+            )
+        )
+    else:
+        console.print()
+        console.print(
+            Panel(
+                md,
+                title="[cyan]📋 Event Analysis[/cyan]",
+                border_style="cyan",
+            )
+        )
 
 
 def format_success_message(message: str, console: Optional[Console] = None) -> None:

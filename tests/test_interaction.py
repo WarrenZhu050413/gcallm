@@ -5,12 +5,9 @@ from unittest.mock import patch
 
 from rich.console import Console
 
+from gcallm.agent import ask_user_to_proceed, format_phase2_prompt
 from gcallm.conflicts import ConflictReport
-from gcallm.interaction import (
-    ask_user_to_proceed,
-    display_conflict_report,
-    format_phase2_prompt,
-)
+from gcallm.formatter import display_conflict_report
 
 
 class TestDisplayConflictReport:
@@ -62,7 +59,7 @@ Ready to proceed."""
 class TestAskUserToProceed:
     """Test user confirmation prompts."""
 
-    @patch("gcallm.interaction.Confirm.ask")
+    @patch("rich.prompt.Confirm.ask")
     def test_user_confirms_proceed(self, mock_confirm):
         """Test user chooses to proceed despite conflicts."""
         mock_confirm.return_value = True
@@ -80,7 +77,7 @@ class TestAskUserToProceed:
         assert "confirmed" in message.lower() or "proceed" in message.lower()
         assert mock_confirm.called
 
-    @patch("gcallm.interaction.Confirm.ask")
+    @patch("rich.prompt.Confirm.ask")
     def test_user_cancels(self, mock_confirm):
         """Test user chooses to cancel."""
         mock_confirm.return_value = False
@@ -174,7 +171,7 @@ class TestFormatPhase2Prompt:
 class TestInteractionFlow:
     """Test complete interaction flows."""
 
-    @patch("gcallm.interaction.Confirm.ask")
+    @patch("rich.prompt.Confirm.ask")
     def test_full_important_conflict_flow_proceed(self, mock_confirm):
         """Test full flow: important conflict, user proceeds."""
         mock_confirm.return_value = True
@@ -209,7 +206,7 @@ Conflicts detected:
         assert "confirmed" in prompt.lower()
         assert "Team meeting" in prompt
 
-    @patch("gcallm.interaction.Confirm.ask")
+    @patch("rich.prompt.Confirm.ask")
     def test_full_important_conflict_flow_cancel(self, mock_confirm):
         """Test full flow: important conflict, user cancels."""
         mock_confirm.return_value = False
