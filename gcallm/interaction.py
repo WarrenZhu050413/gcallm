@@ -1,10 +1,11 @@
 """User interaction handlers for interactive mode."""
 
 from typing import Optional
+
 from rich.console import Console
-from rich.prompt import Confirm
-from rich.panel import Panel
 from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.prompt import Confirm
 
 from gcallm.conflicts import ConflictReport
 

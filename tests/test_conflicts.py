@@ -2,8 +2,8 @@
 
 from gcallm.conflicts import (
     ConflictReport,
-    extract_proposed_events,
     extract_conflicts,
+    extract_proposed_events,
 )
 
 
@@ -25,6 +25,7 @@ Conflicts detected:
 
         # Should raise ValueError when text format provided with strict=True
         import pytest
+
         with pytest.raises(ValueError, match="Response must be valid XML"):
             ConflictReport.from_response(text_response, strict=True)
 

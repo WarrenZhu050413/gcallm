@@ -1,12 +1,12 @@
 """Tests for input handling."""
 
-from unittest.mock import Mock, patch
 from io import StringIO
+from unittest.mock import Mock, patch
 
 from gcallm.helpers.input import (
-    get_from_stdin,
     get_from_clipboard,
     get_from_editor,
+    get_from_stdin,
     get_input,
 )
 

@@ -5,9 +5,9 @@ import os
 from typing import Optional
 
 from claude_agent_sdk import (
-    ClaudeSDKClient,
-    ClaudeAgentOptions,
     AssistantMessage,
+    ClaudeAgentOptions,
+    ClaudeSDKClient,
     TextBlock,
     ToolUseBlock,
 )
@@ -15,7 +15,7 @@ from claude_agent_sdk.types import McpStdioServerConfig
 from rich.console import Console
 from rich.panel import Panel
 
-from gcallm.config import get_oauth_credentials_path, get_custom_system_prompt
+from gcallm.config import get_custom_system_prompt, get_oauth_credentials_path
 
 
 SYSTEM_PROMPT = """You are a calendar assistant. The user will provide event descriptions in natural language, URLs, screenshots, or structured text.
@@ -189,6 +189,49 @@ class CalendarAgent:
         self.model = model or get_model()  # Default to configured model (haiku)
         self.captured_tool_results: list[dict] = []
 
+    def _setup_mcp_config(
+        self, screenshot_paths: Optional[list[str]] = None
+    ) -> tuple[dict, list[str], dict]:
+        """Set up MCP configuration, filesystem access, and hooks.
+
+        Args:
+            screenshot_paths: Optional list of screenshot paths
+
+        Returns:
+            Tuple of (google_calendar_mcp, add_dirs, hooks)
+        """
+        # Load OAuth credentials path from config
+        oauth_path = get_oauth_credentials_path()
+        if oauth_path:
+            os.environ["GOOGLE_OAUTH_CREDENTIALS"] = oauth_path
+
+        # EXPLICIT MCP configuration for Google Calendar
+        # Using McpStdioServerConfig with only required fields
+        google_calendar_mcp: McpStdioServerConfig = {
+            "command": "npx",
+            "args": ["-y", "@cocal/google-calendar-mcp"],
+        }
+
+        # Build add_dirs list for filesystem access
+        add_dirs = []
+        if screenshot_paths:
+            # Grant access to Desktop for reading screenshots
+            add_dirs.append(os.path.expanduser("~/Desktop"))
+
+        # Configure PostToolUse hook to capture MCP tool results
+        from claude_agent_sdk.types import HookMatcher
+
+        hooks = {
+            "PostToolUse": [
+                HookMatcher(
+                    matcher=None,  # Match ALL tools to see if hook gets called
+                    hooks=[self._post_tool_use_hook],
+                )
+            ]
+        }
+
+        return google_calendar_mcp, add_dirs, hooks
+
     async def _post_tool_use_hook(
         self, hook_input: dict, session_id: str | None, context: dict
     ) -> dict:
@@ -239,17 +282,8 @@ class CalendarAgent:
         # Reset captured results for this request
         self.captured_tool_results = []
 
-        # Load OAuth credentials path from config
-        oauth_path = get_oauth_credentials_path()
-        if oauth_path:
-            os.environ["GOOGLE_OAUTH_CREDENTIALS"] = oauth_path
-
-        # EXPLICIT MCP configuration for Google Calendar
-        # Using McpStdioServerConfig with only required fields
-        google_calendar_mcp: McpStdioServerConfig = {
-            "command": "npx",
-            "args": ["-y", "@cocal/google-calendar-mcp"],
-        }
+        # Set up MCP config, filesystem access, and hooks
+        google_calendar_mcp, add_dirs, hooks = self._setup_mcp_config(screenshot_paths)
 
         # Choose system prompt based on mode
         if interactive:
@@ -257,28 +291,12 @@ class CalendarAgent:
         else:
             system_prompt = get_custom_system_prompt() or SYSTEM_PROMPT
 
-        # Build add_dirs list for filesystem access
-        add_dirs = []
-        if screenshot_paths:
-            # Grant access to Desktop for reading screenshots
-            add_dirs.append(os.path.expanduser("~/Desktop"))
-
-        # Configure PostToolUse hook to capture MCP tool results
-        from claude_agent_sdk.types import HookMatcher
-
-        hooks = {
-            "PostToolUse": [
-                HookMatcher(
-                    matcher=None,  # Match ALL tools to see if hook gets called
-                    hooks=[self._post_tool_use_hook],
-                )
-            ]
-        }
-
+        # Permission mode: "default" allows MCP tool usage while requiring approval for file writes
+        # This is safer than "bypassPermissions" - users can approve screenshot reads if needed
         options = ClaudeAgentOptions(
             model=self.model,
             system_prompt=system_prompt,
-            permission_mode="bypassPermissions",
+            permission_mode="default",  # Require approval for file operations (safer)
             max_turns=10,
             mcp_servers={"google-calendar": google_calendar_mcp},
             add_dirs=add_dirs,  # Grant Desktop access when screenshots provided
@@ -335,8 +353,8 @@ class CalendarAgent:
         """
         from gcallm.conflicts import ConflictReport
         from gcallm.interaction import (
-            display_conflict_report,
             ask_user_to_proceed,
+            display_conflict_report,
             format_phase2_prompt,
         )
 
@@ -393,37 +411,13 @@ class CalendarAgent:
             screenshot_paths=screenshot_paths,
         )
 
-        # Load OAuth and MCP config again
-        oauth_path = get_oauth_credentials_path()
-        if oauth_path:
-            os.environ["GOOGLE_OAUTH_CREDENTIALS"] = oauth_path
-
-        google_calendar_mcp: McpStdioServerConfig = {
-            "command": "npx",
-            "args": ["-y", "@cocal/google-calendar-mcp"],
-        }
-
-        # Build add_dirs
-        add_dirs = []
-        if screenshot_paths:
-            add_dirs.append(os.path.expanduser("~/Desktop"))
-
-        # Configure PostToolUse hook for interactive mode too
-        from claude_agent_sdk.types import HookMatcher
-
-        hooks = {
-            "PostToolUse": [
-                HookMatcher(
-                    matcher=None,  # Match ALL tools
-                    hooks=[self._post_tool_use_hook],
-                )
-            ]
-        }
+        # Set up MCP config again for Phase 2
+        google_calendar_mcp, add_dirs, hooks = self._setup_mcp_config(screenshot_paths)
 
         options = ClaudeAgentOptions(
             model=self.model,
             system_prompt=INTERACTIVE_SYSTEM_PROMPT,
-            permission_mode="bypassPermissions",
+            permission_mode="default",  # Require approval for file operations (safer)
             max_turns=10,
             mcp_servers={"google-calendar": google_calendar_mcp},
             add_dirs=add_dirs,

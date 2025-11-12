@@ -2,14 +2,15 @@
 
 from io import StringIO
 from unittest.mock import patch
+
 from rich.console import Console
 
+from gcallm.conflicts import ConflictReport
 from gcallm.interaction import (
-    display_conflict_report,
     ask_user_to_proceed,
+    display_conflict_report,
     format_phase2_prompt,
 )
-from gcallm.conflicts import ConflictReport
 
 
 class TestDisplayConflictReport:

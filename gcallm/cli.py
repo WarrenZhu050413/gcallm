@@ -1,18 +1,28 @@
 #!/usr/bin/env python3
 """Command-line interface for gcallm."""
 
+import sys
 from enum import Enum
 from pathlib import Path
 from typing import Optional
 
-import sys
 import typer
 from rich.console import Console
 
 from gcallm.agent import create_events
-from gcallm.formatters import format_error, format_no_input_warning
-from gcallm.formatter import format_event_response
-from gcallm.helpers.input import get_input
+from gcallm.formatter import (
+    format_error,
+    format_event_response,
+    format_no_input_warning,
+)
+from gcallm.helpers.input_context import InputContext
+from gcallm.helpers.input_sources import (
+    handle_clipboard_input,
+    handle_direct_input,
+    handle_editor_input,
+    handle_screenshot_input,
+    handle_stdin_input,
+)
 
 
 # Known subcommands (used by both default_command and main routing)
@@ -51,7 +61,7 @@ def default_command():
 
     # Check if it's a known subcommand
     if args and args[0] in KNOWN_COMMANDS:
-        return None  # Let Typer handle it
+        return  # Let Typer handle it
 
     # Otherwise, treat as event description
     event_description = " ".join(args) if args else None
@@ -65,26 +75,31 @@ def default_command():
             event_description = None
 
     try:
-        # Check for stdin first (takes priority)
-        has_stdin = not sys.stdin.isatty()
+        # Use composable input handlers (same as add_command)
+        context = InputContext()
 
-        # Determine if we should use editor mode
-        use_editor = not event_description and not clipboard and not has_stdin
-
-        # Get input from various sources
-        user_input = get_input(
-            direct_input=event_description,
-            use_clipboard=clipboard,
-            use_editor=use_editor,
+        # Text input (priority waterfall: direct → stdin → clipboard)
+        context.text_input = (
+            handle_direct_input(event_description)
+            or handle_stdin_input()
+            or handle_clipboard_input(clipboard)
         )
 
-        if not user_input:
+        # Only open editor if no text input
+        if not context.text_input:
+            context.text_input = handle_editor_input()
+
+        # Validate
+        if not context.has_any_input():
             format_no_input_warning(console)
             raise typer.Exit(code=1)
 
         # Create events using Claude agent
         result = create_events(
-            user_input=user_input, console=console, interactive=interactive
+            user_input=context.text_input,
+            screenshot_paths=None,
+            console=console,
+            interactive=interactive,
         )
 
         # Display result with Rich formatting
@@ -147,72 +162,40 @@ def add_command(
       [dim]$[/dim] gcallm  # Opens editor
     """
     try:
-        # Determine screenshot count
-        screenshot_count = None
-        if screenshot:
-            screenshot_count = 1
-        elif screenshots:
-            screenshot_count = screenshots
+        # 1. Gather all inputs using composable handlers
+        context = InputContext()
 
-        # Get screenshot paths if requested
-        screenshot_paths = None
-        if screenshot_count:
-            try:
-                from gcallm.screenshot import find_recent_screenshots
-
-                screenshot_paths = find_recent_screenshots(count=screenshot_count)
-            except ValueError as e:
-                error_msg = str(e)
-                # Check if this is a pattern matching failure
-                if "CLAUDE_FALLBACK_INSTRUCTION" in error_msg:
-                    # Extract user-facing message (before the fallback instruction)
-                    user_msg = error_msg.split("CLAUDE_FALLBACK_INSTRUCTION")[0].strip()
-                    console.print(f"[yellow]⚠️  Warning:[/yellow] {user_msg}")
-                    console.print()
-                    console.print(
-                        "[yellow]Pattern matching failed - screenshot localization issue detected.[/yellow]"
-                    )
-                    console.print(
-                        "[dim]Claude will attempt to manually find your screenshots...[/dim]"
-                    )
-                    console.print()
-                    # Pass the full error (including fallback instruction) to Claude via event_description
-                    # Update user_input to include the error for Claude to handle
-                    if not event_description:
-                        event_description = f"Screenshot pattern error: {error_msg}"
-                else:
-                    console.print(f"[red]Error:[/red] {error_msg}")
-                    console.print(
-                        "[dim]Take a screenshot (⌘+Shift+4) and try again.[/dim]"
-                    )
-                    raise typer.Exit(code=1)
-            except FileNotFoundError as e:
-                console.print(f"[red]Error:[/red] {e}")
-                raise typer.Exit(code=1)
-
-        # Determine if we should use editor mode
-        use_editor = not event_description and not clipboard and not screenshot_paths
-
-        # Get input from various sources
-        user_input = get_input(
-            direct_input=event_description,
-            use_clipboard=clipboard,
-            use_editor=use_editor,
+        # Screenshots (independent handler)
+        context.screenshot_paths = handle_screenshot_input(
+            screenshot=screenshot, screenshots=screenshots, console=console
         )
 
-        # Allow empty input if screenshots provided
-        if not user_input and not screenshot_paths:
+        # Text input (priority waterfall: direct → stdin → clipboard)
+        context.text_input = (
+            handle_direct_input(event_description)
+            or handle_stdin_input()
+            or handle_clipboard_input(clipboard)
+        )
+
+        # Only open editor if no other text input and no screenshots
+        if not context.text_input and not context.screenshot_paths:
+            context.text_input = handle_editor_input()
+
+        # 2. Validate - must have at least one input source
+        if not context.has_any_input():
             format_no_input_warning(console)
             raise typer.Exit(code=1)
 
-        # Default to generic prompt if only screenshots provided
-        if not user_input and screenshot_paths:
-            user_input = "Please analyze the screenshot(s) and create calendar events."
+        # 3. Default prompt if only screenshots provided
+        if not context.text_input and context.screenshot_paths:
+            context.text_input = (
+                "Please analyze the screenshot(s) and create calendar events."
+            )
 
-        # Create events using Claude agent
+        # 4. Create events using Claude agent
         result = create_events(
-            user_input=user_input,
-            screenshot_paths=screenshot_paths,
+            user_input=context.text_input,
+            screenshot_paths=context.screenshot_paths,
             console=console,
             interactive=interactive,
         )
@@ -343,7 +326,7 @@ def calendars() -> None:
 def setup(
     oauth_path: Optional[str] = typer.Argument(
         None, help="Path to OAuth credentials JSON file"
-    )
+    ),
 ) -> None:
     """Configure OAuth credentials path.
 
@@ -351,8 +334,9 @@ def setup(
       [dim]$[/dim] gcallm setup ~/gcp-oauth.keys.json
       [dim]$[/dim] gcallm setup    [dim]# Interactive prompt[/dim]
     """
-    from gcallm.config import set_oauth_credentials_path, get_oauth_credentials_path
     from pathlib import Path
+
+    from gcallm.config import get_oauth_credentials_path, set_oauth_credentials_path
 
     try:
         # If no path provided, ask for it
@@ -395,7 +379,9 @@ def setup(
 
 @app.command()
 def config(
-    setting: Optional[str] = typer.Argument(None, help="Setting to configure (model, prompt, show)"),
+    setting: Optional[str] = typer.Argument(
+        None, help="Setting to configure (model, prompt, show)"
+    ),
     value: Optional[str] = typer.Argument(None, help="Value to set (for model)"),
     clear: bool = typer.Option(False, "--clear", help="Clear/reset the setting"),
 ) -> None:
@@ -409,17 +395,18 @@ def config(
       [dim]$[/dim] gcallm config prompt            [dim]# Edit custom system prompt[/dim]
       [dim]$[/dim] gcallm config prompt --clear    [dim]# Reset to default prompt[/dim]
     """
-    from gcallm.config import (
-        get_model,
-        set_model,
-        get_custom_system_prompt,
-        set_custom_system_prompt,
-        clear_custom_system_prompt,
-        get_oauth_credentials_path,
-    )
-    from gcallm.agent import SYSTEM_PROMPT
-    from gcallm.helpers.input import open_editor
     import tempfile
+
+    from gcallm.agent import SYSTEM_PROMPT
+    from gcallm.config import (
+        clear_custom_system_prompt,
+        get_custom_system_prompt,
+        get_model,
+        get_oauth_credentials_path,
+        set_custom_system_prompt,
+        set_model,
+    )
+    from gcallm.helpers.input import open_editor
 
     try:
         # Handle 'show' subcommand
@@ -435,17 +422,25 @@ def config(
             # Show custom prompt status
             custom_prompt = get_custom_system_prompt()
             if custom_prompt:
-                prompt_preview = custom_prompt[:50] + "..." if len(custom_prompt) > 50 else custom_prompt
+                prompt_preview = (
+                    custom_prompt[:50] + "..."
+                    if len(custom_prompt) > 50
+                    else custom_prompt
+                )
                 console.print(f"[dim]Custom Prompt:[/dim] {prompt_preview}")
             else:
-                console.print(f"[dim]Custom Prompt:[/dim] [yellow]Using default[/yellow]")
+                console.print(
+                    "[dim]Custom Prompt:[/dim] [yellow]Using default[/yellow]"
+                )
 
             # Show OAuth path
             oauth_path = get_oauth_credentials_path()
             if oauth_path:
                 console.print(f"[dim]OAuth Credentials:[/dim] {oauth_path}")
             else:
-                console.print(f"[dim]OAuth Credentials:[/dim] [yellow]Not configured[/yellow]")
+                console.print(
+                    "[dim]OAuth Credentials:[/dim] [yellow]Not configured[/yellow]"
+                )
 
             console.print()
             return
@@ -453,7 +448,9 @@ def config(
         # Handle 'model' subcommand
         if setting == "model":
             if not value:
-                console.print("[red]Error:[/red] Please specify a model (haiku, sonnet, opus)")
+                console.print(
+                    "[red]Error:[/red] Please specify a model (haiku, sonnet, opus)"
+                )
                 console.print("[dim]Example:[/dim] gcallm config model haiku")
                 raise typer.Exit(code=1)
 
@@ -481,7 +478,9 @@ def config(
             current_prompt = get_custom_system_prompt() or SYSTEM_PROMPT
 
             # Write to temp file
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tf:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".txt", delete=False
+            ) as tf:
                 tf.write(current_prompt)
                 tf.write("\n\n")
                 tf.write("# Edit the system prompt above\n")
@@ -492,7 +491,9 @@ def config(
             try:
                 # Open editor
                 console.print()
-                console.print("[cyan]Opening editor to customize system prompt...[/cyan]")
+                console.print(
+                    "[cyan]Opening editor to customize system prompt...[/cyan]"
+                )
                 console.print()
 
                 new_prompt = open_editor(temp_path)
@@ -507,7 +508,9 @@ def config(
                 console.print()
                 console.print("[green]✓[/green] System prompt updated")
                 console.print()
-                console.print("[dim]Use 'gcallm config prompt --clear' to revert to default[/dim]")
+                console.print(
+                    "[dim]Use 'gcallm config prompt --clear' to revert to default[/dim]"
+                )
                 console.print()
 
             finally:
@@ -534,7 +537,7 @@ def config(
 def prompt(
     reset: bool = typer.Option(
         False, "--reset", "-r", help="Reset to default system prompt"
-    )
+    ),
 ) -> None:
     """[deprecated] Use 'gcallm config prompt' instead.
 
@@ -542,14 +545,15 @@ def prompt(
       [dim]$[/dim] gcallm prompt          [dim]# Edit custom prompt in editor[/dim]
       [dim]$[/dim] gcallm prompt --reset  [dim]# Reset to default prompt[/dim]
     """
+    import tempfile
+
+    from gcallm.agent import SYSTEM_PROMPT
     from gcallm.config import (
+        clear_custom_system_prompt,
         get_custom_system_prompt,
         set_custom_system_prompt,
-        clear_custom_system_prompt,
     )
-    from gcallm.agent import SYSTEM_PROMPT
     from gcallm.helpers.input import open_editor
-    import tempfile
 
     try:
         if reset:

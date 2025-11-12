@@ -1,17 +1,18 @@
 """Pytest configuration and fixtures for gcallm tests."""
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 from typer.testing import CliRunner
 
 
-@pytest.fixture
+@pytest.fixture()
 def cli_runner():
     """Provide a CliRunner for testing CLI commands."""
     return CliRunner()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_calendar_agent():
     """Provide a mocked CalendarAgent."""
     mock = Mock()
@@ -19,7 +20,7 @@ def mock_calendar_agent():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_console():
     """Provide a mocked Rich console."""
     return Mock()

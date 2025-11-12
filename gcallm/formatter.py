@@ -2,6 +2,7 @@
 
 import re
 from datetime import datetime
+from typing import Optional
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -194,7 +195,11 @@ def format_event_response(response: str, console: Console) -> None:
                 console.print()
 
             # Check for conflicts or notes
-            if "⚠️" in response or "Note:" in response or "conflict" in response.lower():
+            if (
+                "⚠️" in response
+                or "Note:" in response
+                or "conflict" in response.lower()
+            ):
                 # Extract warning/note text
                 warning_lines = []
                 capture = False
@@ -230,4 +235,50 @@ def format_event_response(response: str, console: Console) -> None:
     md = Markdown(response)
     console.print()
     console.print(md)
+    console.print()
+
+
+def format_error(error_msg: str, console: Optional[Console] = None) -> None:
+    """Format and display error message.
+
+    Args:
+        error_msg: Error message to display
+        console: Rich console for output
+    """
+    console = console or Console()
+    console.print()
+    console.print(Panel(f"[red]{error_msg}[/red]", title="❌ Error", border_style="red"))
+    console.print()
+
+
+def format_no_input_warning(console: Optional[Console] = None) -> None:
+    """Display warning when no input provided.
+
+    Args:
+        console: Rich console for output
+    """
+    console = console or Console()
+    console.print()
+    console.print("[yellow]⚠️  No input provided[/yellow]")
+    console.print()
+    console.print("Usage:")
+    console.print('  [cyan]gcallm "Meeting tomorrow at 3pm"[/cyan]  # Direct input')
+    console.print("  [cyan]gcallm --clipboard[/cyan]                  # From clipboard")
+    console.print("  [cyan]pbpaste | gcallm[/cyan]                    # From stdin")
+    console.print("  [cyan]gcallm[/cyan]                              # Open editor")
+    console.print()
+
+
+def format_success_message(message: str, console: Optional[Console] = None) -> None:
+    """Format and display success message.
+
+    Args:
+        message: Success message
+        console: Rich console for output
+    """
+    console = console or Console()
+    console.print()
+    console.print(
+        Panel(f"[green]{message}[/green]", title="✅ Success", border_style="green")
+    )
     console.print()

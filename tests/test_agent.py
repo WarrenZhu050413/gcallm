@@ -1,7 +1,8 @@
 """Tests for the Calendar Agent."""
 
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from rich.console import Console
 
 from gcallm.agent import CalendarAgent, create_events
@@ -24,7 +25,7 @@ class TestCalendarAgent:
 
         assert agent.model == "haiku"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("gcallm.agent.ClaudeSDKClient")
     async def test_process_events(self, mock_client_class):
         """Test process_events makes correct API calls."""
@@ -67,12 +68,13 @@ class TestCalendarAgent:
         assert isinstance(result, dict)
         assert "Event created" in result["text"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("gcallm.agent.ClaudeSDKClient")
     async def test_process_events_shows_tool_usage(self, mock_client_class):
         """Test that MCP tool usage is displayed to console."""
-        from gcallm.agent import AssistantMessage, TextBlock, ToolUseBlock
         from io import StringIO
+
+        from gcallm.agent import AssistantMessage, TextBlock, ToolUseBlock
 
         # Setup mock client
         mock_client = AsyncMock()
@@ -125,7 +127,7 @@ class TestCalendarAgent:
         assert "text" in result
         assert "Event created successfully" in result["text"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_agent_hook_captures_tool_results_when_called(self):
         """Test that PostToolUse hook logic captures event data correctly.
 

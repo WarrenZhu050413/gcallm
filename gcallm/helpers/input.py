@@ -54,16 +54,14 @@ def open_editor(file_path: Optional[str] = None) -> Optional[str]:
     Returns:
         Content from editor, or None if cancelled
     """
-    editor = os.environ.get("EDITOR", "vim")
+    editor: str = os.environ.get("EDITOR", "nano")
 
     if file_path:
         # Edit existing file
         edit_path = Path(file_path)
     else:
         # Create temp file
-        with tempfile.NamedTemporaryFile(
-            mode="w+", suffix=".txt", delete=False
-        ) as tf:
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as tf:
             edit_path = Path(tf.name)
             # Write helpful prompt
             tf.write("\n\n\n")

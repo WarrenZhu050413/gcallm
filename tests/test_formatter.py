@@ -1,6 +1,7 @@
 """Tests for the formatter module."""
 
 from io import StringIO
+
 from rich.console import Console
 
 from gcallm.formatter import format_event_response, format_tool_results

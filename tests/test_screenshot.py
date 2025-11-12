@@ -3,6 +3,7 @@
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
+
 import pytest
 
 from gcallm.screenshot import find_recent_screenshots
@@ -182,13 +183,14 @@ class TestScreenshotDiscovery:
 class TestCLIIntegration:
     """Tests for CLI screenshot flags."""
 
-    @patch("gcallm.screenshot.find_recent_screenshots")
+    @patch("gcallm.helpers.input_sources.find_recent_screenshots")
     @patch(
         "gcallm.cli.create_events"
     )  # Patch where it's imported, not where it's defined
     def test_add_with_screenshot_flag(self, mock_create_events, mock_find_screenshots):
         """Test: gcallm add --screenshot"""
         from typer.testing import CliRunner
+
         from gcallm.cli import app
 
         runner = CliRunner()
@@ -204,13 +206,14 @@ class TestCLIIntegration:
         # Should pass screenshot_paths to create_events
         assert mock_create_events.called
 
-    @patch("gcallm.screenshot.find_recent_screenshots")
+    @patch("gcallm.helpers.input_sources.find_recent_screenshots")
     @patch("gcallm.cli.create_events")  # Patch where it's imported
     def test_add_with_screenshot_short_flag(
         self, mock_create_events, mock_find_screenshots
     ):
         """Test: gcallm add -s (tested with --screenshot to avoid pytest conflict)"""
         from typer.testing import CliRunner
+
         from gcallm.cli import app
 
         runner = CliRunner()
@@ -226,13 +229,14 @@ class TestCLIIntegration:
             mock_create_events.called
         ), f"create_events was not called. Exit code: {result.exit_code}"
 
-    @patch("gcallm.screenshot.find_recent_screenshots")
+    @patch("gcallm.helpers.input_sources.find_recent_screenshots")
     @patch("gcallm.cli.create_events")  # Patch where it's imported
     def test_add_with_multiple_screenshots(
         self, mock_create_events, mock_find_screenshots
     ):
         """Test: gcallm add --screenshots 3"""
         from typer.testing import CliRunner
+
         from gcallm.cli import app
 
         runner = CliRunner()
@@ -252,13 +256,14 @@ class TestCLIIntegration:
         if mock_create_events.call_args:
             assert mock_create_events.call_args[1]["screenshot_paths"] is not None
 
-    @patch("gcallm.screenshot.find_recent_screenshots")
+    @patch("gcallm.helpers.input_sources.find_recent_screenshots")
     @patch("gcallm.cli.create_events")  # Patch where it's imported
     def test_screenshot_plus_text_input(
         self, mock_create_events, mock_find_screenshots
     ):
         """Test: gcallm add --screenshot "Extra context" """
         from typer.testing import CliRunner
+
         from gcallm.cli import app
 
         runner = CliRunner()
@@ -279,12 +284,13 @@ class TestCLIIntegration:
 class TestAgentIntegration:
     """Tests for agent screenshot handling."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("gcallm.agent.ClaudeSDKClient")
     async def test_agent_receives_screenshot_paths(self, mock_client_class):
         """Verify screenshot paths passed to CalendarAgent."""
-        from gcallm.agent import CalendarAgent, AssistantMessage, TextBlock
         from unittest.mock import AsyncMock
+
+        from gcallm.agent import AssistantMessage, CalendarAgent, TextBlock
 
         # Setup mock client
         mock_client = AsyncMock()
@@ -316,12 +322,13 @@ class TestAgentIntegration:
         call_args = str(mock_client.query.call_args)
         assert "Screenshot.png" in call_args
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     @patch("gcallm.agent.ClaudeSDKClient")
     async def test_agent_options_include_desktop_directory(self, mock_client_class):
         """Verify add_dirs contains ~/Desktop when screenshots used."""
-        from gcallm.agent import CalendarAgent, AssistantMessage, TextBlock
         from unittest.mock import AsyncMock
+
+        from gcallm.agent import AssistantMessage, CalendarAgent, TextBlock
 
         # Setup mock client
         mock_client = AsyncMock()

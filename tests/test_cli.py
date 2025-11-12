@@ -1,6 +1,7 @@
 """Tests for CLI commands."""
 
 from unittest.mock import Mock, patch
+
 from typer.testing import CliRunner
 
 from gcallm.cli import app
@@ -85,7 +86,7 @@ class TestAddCommand:
         call_args = mock_create_events.call_args
         assert "Coffee with Sarah tomorrow at 2pm" in str(call_args)
 
-    @patch("gcallm.helpers.input.get_from_editor")
+    @patch("gcallm.helpers.input_sources.open_editor")
     @patch("gcallm.cli.create_events")
     def test_add_without_args_opens_editor(self, mock_create_events, mock_editor):
         """Test that 'gcallm add' without args opens editor."""
@@ -98,7 +99,7 @@ class TestAddCommand:
         assert mock_editor.called
         assert mock_create_events.called
 
-    @patch("gcallm.helpers.input.get_from_clipboard")
+    @patch("gcallm.helpers.input_sources.get_from_clipboard")
     @patch("gcallm.cli.create_events")
     def test_add_with_clipboard_flag(self, mock_create_events, mock_clipboard):
         """Test that 'gcallm add --clipboard' reads from clipboard."""
@@ -176,6 +177,7 @@ class TestAddCommand:
 
         # Capture console output
         from io import StringIO
+
         from rich.console import Console
 
         output = StringIO()
@@ -209,6 +211,7 @@ class TestAddCommand:
 
         # Capture console output
         from io import StringIO
+
         from rich.console import Console
 
         output = StringIO()
@@ -286,7 +289,9 @@ class TestConfigCommand:
         result = runner.invoke(app, ["config", "prompt"])
 
         assert result.exit_code == 0
-        assert "cancelled" in result.stdout.lower() or "aborted" in result.stdout.lower()
+        assert (
+            "cancelled" in result.stdout.lower() or "aborted" in result.stdout.lower()
+        )
 
     @patch("gcallm.config.clear_custom_system_prompt")
     def test_config_prompt_clear(self, mock_clear_prompt):
@@ -343,6 +348,7 @@ class TestMainRouting:
     def test_main_routes_config_to_typer(self, mock_app):
         """Test that main() routes 'config' command to Typer app."""
         import sys
+
         from gcallm.cli import main
 
         # Simulate 'gcallm config'
@@ -359,6 +365,7 @@ class TestMainRouting:
     def test_main_routes_config_show_to_typer(self, mock_app):
         """Test that main() routes 'config show' to Typer app."""
         import sys
+
         from gcallm.cli import main
 
         # Simulate 'gcallm config show'
@@ -375,6 +382,7 @@ class TestMainRouting:
     def test_main_routes_help_flags_to_typer(self, mock_app):
         """Test that main() routes --help to Typer app."""
         import sys
+
         from gcallm.cli import main
 
         # Simulate 'gcallm --help'
@@ -391,6 +399,7 @@ class TestMainRouting:
     def test_main_routes_unknown_to_default_command(self, mock_default):
         """Test that main() routes unknown commands to default_command()."""
         import sys
+
         from gcallm.cli import main
 
         # Simulate 'gcallm Meeting tomorrow'
@@ -407,7 +416,8 @@ class TestMainRouting:
     def test_main_routes_all_known_commands_to_typer(self, mock_app):
         """Test that all KNOWN_COMMANDS are routed to Typer."""
         import sys
-        from gcallm.cli import main, KNOWN_COMMANDS
+
+        from gcallm.cli import KNOWN_COMMANDS, main
 
         original_argv = sys.argv
         try:
