@@ -131,6 +131,7 @@ def add_command(
     screenshots: Optional[int] = typer.Option(
         None,
         "--screenshots",
+        "-ss",
         help="Use N latest screenshots from Desktop",
     ),
     interactive: bool = typer.Option(
@@ -153,7 +154,7 @@ def add_command(
       [dim]$[/dim] gcallm "https://www.aiandsoul.org/..."
       [dim]$[/dim] gcallm --clipboard
       [dim]$[/dim] gcallm -s              # Use latest screenshot
-      [dim]$[/dim] gcallm --screenshots 3 # Use latest 3 screenshots
+      [dim]$[/dim] gcallm -ss 3           # Use latest 3 screenshots
       [dim]$[/dim] gcallm --interactive   # Check for conflicts first
       [dim]$[/dim] gcallm -i "Meeting tomorrow" # Interactive mode
       [dim]$[/dim] pbpaste | gcallm
