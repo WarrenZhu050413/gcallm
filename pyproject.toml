@@ -1,6 +1,6 @@
 [project]
 name = "gcallm"
-version = "0.1.0"
+version = "0.1.1"
 description = "Simple CLI to add events to Google Calendar using Claude and natural language"
 authors = [
     {name = "Warren Zhu", email = "wzhu@college.harvard.edu"}
@@ -24,10 +24,12 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "typer[all]>=0.9.0",
+    "typer>=0.9.0",
     "rich>=13.0.0",
     "claude-agent-sdk>=0.1.0",
     "python-dateutil>=2.8.0",
+    "click>=8.0.0",
+    "shellingham>=1.0.0",
 ]
 
 [project.urls]
