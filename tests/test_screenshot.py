@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from gcallm.screenshot import find_recent_screenshots
+from gcallm.helpers.screenshot import find_recent_screenshots
 
 
 class TestScreenshotDiscovery:

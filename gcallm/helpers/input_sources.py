@@ -13,7 +13,7 @@ from rich.console import Console
 
 from gcallm.formatter import format_error
 from gcallm.helpers.input import get_from_clipboard, get_from_stdin, open_editor
-from gcallm.screenshot import find_recent_screenshots
+from gcallm.helpers.screenshot import find_recent_screenshots
 
 
 def handle_screenshot_input(
