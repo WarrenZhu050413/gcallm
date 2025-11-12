@@ -24,8 +24,14 @@ Coffee with Sarah
 
 ### Option 1: Install from PyPI (Recommended)
 
+**Using pip:**
 ```bash
 pip install gcallm
+```
+
+**Using uv (faster):**
+```bash
+uv tool install gcallm
 ```
 
 ### Option 2: Install from Source
